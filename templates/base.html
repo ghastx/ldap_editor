@@ -1,3 +1,12 @@
+{#
+  base.html - Template base Jinja2
+
+  Layout comune a tutte le pagine: intestazione con navigazione,
+  messaggi flash (notifiche di successo/errore) e blocco content
+  che viene sovrascritto dai template figli.
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -10,12 +19,14 @@
     <div class="container">
         <header>
             <h1><a href="{{ url_for('index') }}">Rubrica LDAP</a></h1>
+            <!-- Navigazione principale -->
             <nav>
                 <a href="{{ url_for('index') }}">Rubrica</a>
                 <a href="{{ url_for('audit_log') }}">Registro modifiche</a>
             </nav>
         </header>
 
+        {# Messaggi flash: mostrano notifiche di successo (success) o errore (danger) #}
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -25,6 +36,7 @@
         {% endwith %}
 
         <main>
+            {# Ogni pagina inserisce qui il proprio contenuto #}
             {% block content %}{% endblock %}
         </main>
     </div>

@@ -1,3 +1,15 @@
+{#
+  log.html - Registro delle modifiche (audit log)
+
+  Mostra una tabella con lo storico di tutte le operazioni eseguite
+  sui contatti (aggiunta, modifica, eliminazione), con data/ora,
+  dettagli delle modifiche e indirizzo IP dell'operatore.
+
+  Variabili dal controller:
+    entries: lista di dizionari dal database SQLite audit_log
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
 {% extends "base.html" %}
 
 {% block content %}
@@ -22,6 +34,7 @@
         <tr>
             <td class="nowrap">{{ entry.timestamp }}</td>
             <td>
+                {# Badge colorato in base al tipo di operazione #}
                 <span class="badge badge-{{ 'success' if entry.action == 'aggiunto' else 'warning' if entry.action == 'modificato' else 'danger' }}">
                     {{ entry.action }}
                 </span>
@@ -33,6 +46,7 @@
         {% endfor %}
     </tbody>
 </table>
+{# Conteggio voci con accordo singolare/plurale #}
 <p class="count">{{ entries|length }} voc{{ 'e' if entries|length == 1 else 'i' }} nel registro</p>
 {% else %}
 <p class="empty">Nessuna modifica registrata.</p>

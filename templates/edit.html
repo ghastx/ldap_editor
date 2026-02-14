@@ -1,3 +1,15 @@
+{#
+  edit.html - Form per la modifica di un contatto esistente
+
+  Mostra un form precompilato con i dati attuali del contatto.
+  Al submit, il controller aggiorna l'entry LDAP e registra le
+  differenze nel log delle modifiche.
+
+  Variabili dal controller:
+    contact: dizionario con uid, displayName, telephoneNumber del contatto
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
 {% extends "base.html" %}
 
 {% block content %}

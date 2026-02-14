@@ -1,3 +1,21 @@
+# app.py - Applicazione Flask principale (route e logica di presentazione)
+#
+# Rubrica LDAP - Frontend web per la gestione di una rubrica telefonica LDAP
+# Copyright (C) 2024
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, see <https://www.gnu.org/licenses/>.
+
 from flask import Flask, flash, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
 
@@ -8,6 +26,7 @@ from ldap_client import LDAPClient
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Inizializza il client LDAP con i parametri dalla configurazione
 ldap = LDAPClient(
     {
         "LDAP_HOST": app.config["LDAP_HOST"],
@@ -20,8 +39,16 @@ ldap = LDAPClient(
 )
 
 
+# --- Route principali ---
+
+
 @app.route("/")
 def index():
+    """Pagina principale: elenco dei contatti con ricerca opzionale.
+
+    Parametri GET:
+        q: stringa di ricerca (filtra per nome o numero di telefono).
+    """
     search = request.args.get("q", "").strip()
     try:
         contacts = ldap.get_all_contacts()
@@ -29,6 +56,7 @@ def index():
         flash(f"Errore di connessione LDAP: {e}", "danger")
         contacts = []
 
+    # Filtra i risultati se e' presente una query di ricerca
     if search:
         q = search.lower()
         contacts = [
@@ -42,6 +70,12 @@ def index():
 
 @app.route("/add", methods=["GET", "POST"])
 def add_contact():
+    """Aggiunta di un nuovo contatto.
+
+    GET: mostra il form vuoto.
+    POST: valida i dati, crea l'entry LDAP e registra l'operazione nel log.
+    L'uid viene generato automaticamente dal nome rimuovendo gli spazi.
+    """
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         telephone = request.form.get("telephone", "").strip()
@@ -52,7 +86,7 @@ def add_contact():
                 "add.html", display_name=display_name, telephone=telephone
             )
 
-        # Use displayName as uid (same pattern as existing entries)
+        # Genera l'uid dal nome (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
             ldap.add_contact(uid, display_name, telephone)
@@ -74,6 +108,12 @@ def add_contact():
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
 def edit_contact(uid):
+    """Modifica di un contatto esistente.
+
+    GET: carica i dati attuali del contatto e mostra il form precompilato.
+    POST: salva le modifiche, confronta i valori vecchi/nuovi e registra
+          nel log solo i campi effettivamente cambiati.
+    """
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         telephone = request.form.get("telephone", "").strip()
@@ -86,9 +126,11 @@ def edit_contact(uid):
             )
 
         try:
+            # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
             ldap.update_contact(uid, display_name, telephone)
-            # Build details showing what changed
+
+            # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
             if old_contact and old_contact["displayName"] != display_name:
                 changes.append(f"Nome: {old_contact['displayName']} -> {display_name}")
@@ -123,7 +165,12 @@ def edit_contact(uid):
 
 @app.route("/delete/<uid>", methods=["POST"])
 def delete_contact(uid):
+    """Eliminazione di un contatto (solo POST per sicurezza).
+
+    Prima di eliminare, salva i dati del contatto nel log per riferimento.
+    """
     try:
+        # Salva i dati del contatto prima dell'eliminazione per il log
         contact = ldap.get_contact(uid)
         ldap.delete_contact(uid)
         detail = ""
@@ -138,6 +185,7 @@ def delete_contact(uid):
 
 @app.route("/log")
 def audit_log():
+    """Visualizza il registro delle modifiche (ultime 200 operazioni)."""
     entries = get_log()
     return render_template("log.html", entries=entries)
 

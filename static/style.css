@@ -1,3 +1,25 @@
+/*
+ * style.css - Foglio di stile dell'applicazione Rubrica LDAP
+ *
+ * Organizzazione delle sezioni:
+ *   1. Reset e base
+ *   2. Layout e header/navigazione
+ *   3. Messaggi di notifica (alert)
+ *   4. Barra degli strumenti (toolbar) e ricerca
+ *   5. Pulsanti
+ *   6. Tabella contatti
+ *   7. Form (aggiunta/modifica contatto)
+ *   8. Modale di conferma eliminazione
+ *   9. Badge per il registro modifiche
+ *  10. Stili specifici per la pagina log
+ *
+ * Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+ */
+
+/* ==========================================================================
+   1. Reset e stili di base
+   ========================================================================== */
+
 * {
     margin: 0;
     padding: 0;
@@ -11,11 +33,16 @@ body {
     line-height: 1.6;
 }
 
+/* Contenitore principale centrato con larghezza massima */
 .container {
     max-width: 800px;
     margin: 0 auto;
     padding: 20px;
 }
+
+/* ==========================================================================
+   2. Layout header e navigazione
+   ========================================================================== */
 
 header {
     display: flex;
@@ -33,6 +60,7 @@ header h1 a {
     text-decoration: none;
 }
 
+/* Menu di navigazione (Rubrica | Registro modifiche) */
 nav {
     display: flex;
     gap: 16px;
@@ -48,26 +76,34 @@ nav a:hover {
     text-decoration: underline;
 }
 
-/* Alerts */
+/* ==========================================================================
+   3. Messaggi di notifica (flash messages)
+   ========================================================================== */
+
 .alert {
     padding: 12px 16px;
     margin-bottom: 16px;
     border-radius: 4px;
 }
 
+/* Operazione completata con successo */
 .alert-success {
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
 }
 
+/* Errore o validazione fallita */
 .alert-danger {
     background: #f8d7da;
     color: #721c24;
     border: 1px solid #f5c6cb;
 }
 
-/* Toolbar */
+/* ==========================================================================
+   4. Barra degli strumenti e ricerca
+   ========================================================================== */
+
 .toolbar {
     display: flex;
     justify-content: space-between;
@@ -91,7 +127,10 @@ nav a:hover {
     font-size: 14px;
 }
 
-/* Buttons */
+/* ==========================================================================
+   5. Pulsanti
+   ========================================================================== */
+
 .btn {
     display: inline-block;
     padding: 8px 16px;
@@ -103,6 +142,7 @@ nav a:hover {
     white-space: nowrap;
 }
 
+/* Azione principale (aggiungi, salva) */
 .btn-primary {
     background: #3498db;
     color: white;
@@ -112,6 +152,7 @@ nav a:hover {
     background: #2980b9;
 }
 
+/* Azione secondaria (annulla, torna indietro) */
 .btn-secondary {
     background: #95a5a6;
     color: white;
@@ -121,6 +162,7 @@ nav a:hover {
     background: #7f8c8d;
 }
 
+/* Azione distruttiva (elimina) */
 .btn-danger {
     background: #e74c3c;
     color: white;
@@ -130,12 +172,16 @@ nav a:hover {
     background: #c0392b;
 }
 
+/* Pulsanti compatti per le azioni nella tabella */
 .btn-small {
     padding: 4px 10px;
     font-size: 13px;
 }
 
-/* Table */
+/* ==========================================================================
+   6. Tabella contatti e registro modifiche
+   ========================================================================== */
+
 table {
     width: 100%;
     border-collapse: collapse;
@@ -156,6 +202,7 @@ th {
     font-weight: 600;
 }
 
+/* Righe alternate per leggibilita' */
 tr:nth-child(even) {
     background: #f9f9f9;
 }
@@ -173,6 +220,7 @@ td a:hover {
     text-decoration: underline;
 }
 
+/* Colonna azioni: pulsanti Modifica ed Elimina affiancati */
 .actions {
     display: flex;
     gap: 6px;
@@ -183,19 +231,24 @@ td a:hover {
     display: inline;
 }
 
+/* Conteggio risultati sotto la tabella */
 .count {
     margin-top: 12px;
     color: #777;
     font-size: 14px;
 }
 
+/* Messaggio quando non ci sono risultati */
 .empty {
     padding: 40px;
     text-align: center;
     color: #999;
 }
 
-/* Forms */
+/* ==========================================================================
+   7. Form aggiunta/modifica contatto
+   ========================================================================== */
+
 .contact-form {
     background: white;
     padding: 24px;
@@ -223,6 +276,7 @@ td a:hover {
     font-size: 14px;
 }
 
+/* Evidenziazione del campo in focus */
 .form-group input:focus {
     outline: none;
     border-color: #3498db;
@@ -240,7 +294,11 @@ h2 {
     color: #2c3e50;
 }
 
-/* Modal */
+/* ==========================================================================
+   8. Modale di conferma eliminazione
+   ========================================================================== */
+
+/* Overlay semitrasparente che copre tutta la pagina */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -254,6 +312,7 @@ h2 {
     z-index: 1000;
 }
 
+/* Finestra modale centrata */
 .modal {
     background: white;
     padding: 28px;
@@ -283,7 +342,10 @@ h2 {
     display: inline;
 }
 
-/* Badges */
+/* ==========================================================================
+   9. Badge per il tipo di operazione nel registro modifiche
+   ========================================================================== */
+
 .badge {
     display: inline-block;
     padding: 2px 8px;
@@ -293,26 +355,34 @@ h2 {
     text-transform: uppercase;
 }
 
+/* Contatto aggiunto */
 .badge-success {
     background: #d4edda;
     color: #155724;
 }
 
+/* Contatto modificato */
 .badge-warning {
     background: #fff3cd;
     color: #856404;
 }
 
+/* Contatto eliminato */
 .badge-danger {
     background: #f8d7da;
     color: #721c24;
 }
 
-/* Log table */
+/* ==========================================================================
+   10. Stili specifici per la pagina registro modifiche
+   ========================================================================== */
+
+/* Impedisce il ritorno a capo su date e IP */
 .nowrap {
     white-space: nowrap;
 }
 
+/* Colonna dettagli con larghezza limitata e word-break */
 .details-cell {
     font-size: 13px;
     color: #555;

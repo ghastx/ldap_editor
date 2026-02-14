@@ -1,3 +1,15 @@
+{#
+  add.html - Form per l'aggiunta di un nuovo contatto
+
+  Mostra un form con i campi Nome e Telefono. Al submit, il controller
+  genera l'uid dal nome e crea l'entry inetOrgPerson sul server LDAP.
+
+  Variabili dal controller:
+    display_name: valore corrente del campo nome (per ripopolamento dopo errore)
+    telephone: valore corrente del campo telefono
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
 {% extends "base.html" %}
 
 {% block content %}

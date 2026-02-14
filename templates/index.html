@@ -1,6 +1,20 @@
+{#
+  index.html - Elenco contatti con ricerca e azioni
+
+  Mostra tutti i contatti della rubrica LDAP in una tabella con
+  possibilita' di cercare per nome o numero, aggiungere nuovi contatti,
+  modificare o eliminare quelli esistenti.
+
+  Variabili dal controller:
+    contacts: lista di dizionari con i dati dei contatti
+    search: stringa di ricerca corrente (vuota se nessuna ricerca)
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
 {% extends "base.html" %}
 
 {% block content %}
+{# Barra degli strumenti: ricerca e pulsante nuovo contatto #}
 <div class="toolbar">
     <form method="get" action="{{ url_for('index') }}" class="search-form">
         <input type="text" name="q" value="{{ search }}" placeholder="Cerca per nome o numero...">
@@ -13,6 +27,7 @@
 </div>
 
 {% if contacts %}
+{# Tabella contatti: nome, telefono (cliccabile come link tel:) e azioni #}
 <table>
     <thead>
         <tr>
@@ -28,6 +43,7 @@
             <td><a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a></td>
             <td class="actions">
                 <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-small">Modifica</a>
+                {# Il pulsante Elimina apre il modale di conferma invece di eliminare direttamente #}
                 <button type="button" class="btn btn-small btn-danger"
                         onclick="showDeleteModal('{{ contact.displayName }}', '{{ url_for('delete_contact', uid=contact.uid) }}')">
                     Elimina
@@ -37,11 +53,17 @@
         {% endfor %}
     </tbody>
 </table>
+{# Conteggio contatti con accordo singolare/plurale #}
 <p class="count">{{ contacts|length }} contatt{{ 'o' if contacts|length == 1 else 'i' }}</p>
 {% else %}
 <p class="empty">Nessun contatto trovato.</p>
 {% endif %}
-<!-- Delete confirmation modal -->
+
+{#
+  Modale di conferma eliminazione.
+  Viene mostrato/nascosto via JavaScript quando si clicca "Elimina".
+  Il form POST viene compilato dinamicamente con l'URL del contatto da eliminare.
+#}
 <div id="deleteModal" class="modal-overlay" style="display:none">
     <div class="modal">
         <h3>Conferma eliminazione</h3>
@@ -56,16 +78,19 @@
 </div>
 
 <script>
+// Mostra il modale di conferma con il nome del contatto e l'URL di eliminazione
 function showDeleteModal(name, action) {
     document.getElementById('deleteContactName').textContent = name;
     document.getElementById('deleteForm').action = action;
     document.getElementById('deleteModal').style.display = 'flex';
 }
 
+// Nasconde il modale di conferma
 function hideDeleteModal() {
     document.getElementById('deleteModal').style.display = 'none';
 }
 
+// Chiude il modale cliccando sullo sfondo scuro (overlay)
 document.getElementById('deleteModal').addEventListener('click', function(e) {
     if (e.target === this) hideDeleteModal();
 });
