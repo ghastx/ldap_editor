@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="toolbar">
+    <form method="get" action="{{ url_for('index') }}" class="search-form">
+        <input type="text" name="q" value="{{ search }}" placeholder="Cerca per nome o numero...">
+        <button type="submit">Cerca</button>
+        {% if search %}
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Mostra tutti</a>
+        {% endif %}
+    </form>
+    <a href="{{ url_for('add_contact') }}" class="btn btn-primary">+ Nuovo contatto</a>
+</div>
+
+{% if contacts %}
+<table>
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Telefono</th>
+            <th>Azioni</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for contact in contacts %}
+        <tr>
+            <td>{{ contact.displayName }}</td>
+            <td><a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a></td>
+            <td class="actions">
+                <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-small">Modifica</a>
+                <form method="post" action="{{ url_for('delete_contact', uid=contact.uid) }}"
+                      onsubmit="return confirm('Eliminare il contatto {{ contact.displayName }}?')">
+                    <button type="submit" class="btn btn-small btn-danger">Elimina</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p class="count">{{ contacts|length }} contatt{{ 'o' if contacts|length == 1 else 'i' }}</p>
+{% else %}
+<p class="empty">Nessun contatto trovato.</p>
+{% endif %}
+{% endblock %}

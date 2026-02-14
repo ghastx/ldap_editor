@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Nuovo contatto</h2>
+
+<form method="post" class="contact-form">
+    <div class="form-group">
+        <label for="display_name">Nome</label>
+        <input type="text" id="display_name" name="display_name"
+               value="{{ display_name }}" required autofocus>
+    </div>
+    <div class="form-group">
+        <label for="telephone">Telefono</label>
+        <input type="tel" id="telephone" name="telephone"
+               value="{{ telephone }}" required placeholder="+39...">
+    </div>
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Aggiungi</button>
+        <a href="{{ url_for('index') }}" class="btn btn-secondary">Annulla</a>
+    </div>
+</form>
+{% endblock %}
