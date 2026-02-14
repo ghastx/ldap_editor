@@ -28,10 +28,10 @@
             <td><a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a></td>
             <td class="actions">
                 <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-small">Modifica</a>
-                <form method="post" action="{{ url_for('delete_contact', uid=contact.uid) }}"
-                      onsubmit="return confirm('Eliminare il contatto {{ contact.displayName }}?')">
-                    <button type="submit" class="btn btn-small btn-danger">Elimina</button>
-                </form>
+                <button type="button" class="btn btn-small btn-danger"
+                        onclick="showDeleteModal('{{ contact.displayName }}', '{{ url_for('delete_contact', uid=contact.uid) }}')">
+                    Elimina
+                </button>
             </td>
         </tr>
         {% endfor %}
@@ -41,4 +41,33 @@
 {% else %}
 <p class="empty">Nessun contatto trovato.</p>
 {% endif %}
+<!-- Delete confirmation modal -->
+<div id="deleteModal" class="modal-overlay" style="display:none">
+    <div class="modal">
+        <h3>Conferma eliminazione</h3>
+        <p>Sei sicuro di voler eliminare il contatto <strong id="deleteContactName"></strong>?</p>
+        <div class="modal-actions">
+            <form id="deleteForm" method="post">
+                <button type="submit" class="btn btn-danger">Elimina</button>
+            </form>
+            <button type="button" class="btn btn-secondary" onclick="hideDeleteModal()">Annulla</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDeleteModal(name, action) {
+    document.getElementById('deleteContactName').textContent = name;
+    document.getElementById('deleteForm').action = action;
+    document.getElementById('deleteModal').style.display = 'flex';
+}
+
+function hideDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) hideDeleteModal();
+});
+</script>
 {% endblock %}
