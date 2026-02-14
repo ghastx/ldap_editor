@@ -1,6 +1,7 @@
 from flask import Flask, flash, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
 
+from audit_log import get_log, log_action
 from config import Config
 from ldap_client import LDAPClient
 
@@ -55,6 +56,11 @@ def add_contact():
         uid = display_name.replace(" ", "")
         try:
             ldap.add_contact(uid, display_name, telephone)
+            log_action(
+                "aggiunto", uid,
+                f"Nome: {display_name}, Tel: {telephone}",
+                request.remote_addr,
+            )
             flash(f"Contatto '{display_name}' aggiunto con successo.", "success")
             return redirect(url_for("index"))
         except LDAPException as e:
@@ -80,7 +86,19 @@ def edit_contact(uid):
             )
 
         try:
+            old_contact = ldap.get_contact(uid)
             ldap.update_contact(uid, display_name, telephone)
+            # Build details showing what changed
+            changes = []
+            if old_contact and old_contact["displayName"] != display_name:
+                changes.append(f"Nome: {old_contact['displayName']} -> {display_name}")
+            if old_contact and old_contact["telephoneNumber"] != telephone:
+                changes.append(f"Tel: {old_contact['telephoneNumber']} -> {telephone}")
+            log_action(
+                "modificato", uid,
+                "; ".join(changes) if changes else "Nessuna modifica rilevata",
+                request.remote_addr,
+            )
             flash(f"Contatto '{display_name}' aggiornato con successo.", "success")
             return redirect(url_for("index"))
         except LDAPException as e:
@@ -106,11 +124,22 @@ def edit_contact(uid):
 @app.route("/delete/<uid>", methods=["POST"])
 def delete_contact(uid):
     try:
+        contact = ldap.get_contact(uid)
         ldap.delete_contact(uid)
+        detail = ""
+        if contact:
+            detail = f"Nome: {contact['displayName']}, Tel: {contact['telephoneNumber']}"
+        log_action("eliminato", uid, detail, request.remote_addr)
         flash("Contatto eliminato con successo.", "success")
     except LDAPException as e:
         flash(f"Errore nell'eliminazione del contatto: {e}", "danger")
     return redirect(url_for("index"))
+
+
+@app.route("/log")
+def audit_log():
+    entries = get_log()
+    return render_template("log.html", entries=entries)
 
 
 if __name__ == "__main__":

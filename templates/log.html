@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="toolbar">
+    <h2>Registro modifiche</h2>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Torna alla rubrica</a>
+</div>
+
+{% if entries %}
+<table>
+    <thead>
+        <tr>
+            <th>Data e ora</th>
+            <th>Azione</th>
+            <th>Contatto</th>
+            <th>Dettagli</th>
+            <th>IP</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr>
+            <td class="nowrap">{{ entry.timestamp }}</td>
+            <td>
+                <span class="badge badge-{{ 'success' if entry.action == 'aggiunto' else 'warning' if entry.action == 'modificato' else 'danger' }}">
+                    {{ entry.action }}
+                </span>
+            </td>
+            <td>{{ entry.contact_uid }}</td>
+            <td class="details-cell">{{ entry.details }}</td>
+            <td class="nowrap">{{ entry.user_ip }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p class="count">{{ entries|length }} voc{{ 'e' if entries|length == 1 else 'i' }} nel registro</p>
+{% else %}
+<p class="empty">Nessuna modifica registrata.</p>
+{% endif %}
+{% endblock %}
