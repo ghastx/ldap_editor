@@ -40,7 +40,12 @@
         {% for contact in contacts %}
         <tr>
             <td>{{ contact.displayName }}</td>
-            <td><a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a></td>
+            <td>
+                <a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a>
+                {% if contact.telephoneNumber2 %}
+                    <br><a href="tel:{{ contact.telephoneNumber2 }}">{{ contact.telephoneNumber2 }}</a>
+                {% endif %}
+            </td>
             <td class="actions">
                 <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-small">Modifica</a>
                 {# Il pulsante Elimina apre il modale di conferma invece di eliminare direttamente #}

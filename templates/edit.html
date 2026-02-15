@@ -6,7 +6,7 @@
   differenze nel log delle modifiche.
 
   Variabili dal controller:
-    contact: dizionario con uid, displayName, telephoneNumber del contatto
+    contact: dizionario con uid, displayName, telephoneNumber, telephoneNumber2
 
   Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 #}
@@ -25,6 +25,11 @@
         <label for="telephone">Telefono</label>
         <input type="tel" id="telephone" name="telephone"
                value="{{ contact.telephoneNumber }}" required>
+    </div>
+    <div class="form-group">
+        <label for="telephone2">Telefono 2 <span class="label-optional">(opzionale)</span></label>
+        <input type="tel" id="telephone2" name="telephone2"
+               value="{{ contact.telephoneNumber2 }}">
     </div>
     <div class="form-actions">
         <button type="submit" class="btn btn-primary">Salva</button>

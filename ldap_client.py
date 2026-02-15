@@ -25,6 +25,7 @@ class LDAPClient:
 
     Ogni contatto viene memorizzato come entry inetOrgPerson con i seguenti
     attributi: uid, cn, displayName, sn, telephoneNumber.
+    L'attributo telephoneNumber e' multi-valore e supporta fino a due numeri.
     La connessione viene aperta e chiusa ad ogni operazione (bind/unbind).
     """
 
@@ -49,11 +50,30 @@ class LDAPClient:
         conn = Connection(server, user=self.bind_dn, password=self.bind_password, auto_bind=True)
         return conn
 
+    @staticmethod
+    def _entry_to_dict(entry):
+        """Converte un'entry ldap3 in un dizionario contatto.
+
+        L'attributo telephoneNumber e' multi-valore: il primo valore viene
+        mappato su 'telephoneNumber', il secondo (se presente) su 'telephoneNumber2'.
+        """
+        # telephoneNumber e' multi-valore: estraiamo la lista dei valori
+        phones = list(entry.telephoneNumber) if entry.telephoneNumber else []
+        return {
+            "uid": str(entry.uid) if entry.uid else "",
+            "cn": str(entry.cn) if entry.cn else "",
+            "displayName": str(entry.displayName) if entry.displayName else "",
+            "sn": str(entry.sn) if entry.sn else "",
+            "telephoneNumber": str(phones[0]) if len(phones) > 0 else "",
+            "telephoneNumber2": str(phones[1]) if len(phones) > 1 else "",
+        }
+
     def get_all_contacts(self):
         """Recupera tutti i contatti inetOrgPerson ordinati per nome.
 
         Returns:
-            Lista di dizionari con uid, cn, displayName, sn, telephoneNumber.
+            Lista di dizionari con uid, cn, displayName, sn,
+            telephoneNumber e telephoneNumber2.
         """
         conn = self._connect()
         try:
@@ -62,17 +82,7 @@ class LDAPClient:
                 "(objectClass=inetOrgPerson)",
                 attributes=["uid", "cn", "displayName", "sn", "telephoneNumber"],
             )
-            contacts = []
-            for entry in conn.entries:
-                contacts.append(
-                    {
-                        "uid": str(entry.uid) if entry.uid else "",
-                        "cn": str(entry.cn) if entry.cn else "",
-                        "displayName": str(entry.displayName) if entry.displayName else "",
-                        "sn": str(entry.sn) if entry.sn else "",
-                        "telephoneNumber": str(entry.telephoneNumber) if entry.telephoneNumber else "",
-                    }
-                )
+            contacts = [self._entry_to_dict(entry) for entry in conn.entries]
             contacts.sort(key=lambda c: c["displayName"].lower())
             return contacts
         finally:
@@ -85,7 +95,8 @@ class LDAPClient:
             uid: identificativo univoco del contatto.
 
         Returns:
-            Dizionario con i dati del contatto, oppure None se non trovato.
+            Dizionario con i dati del contatto (incluso telephoneNumber2),
+            oppure None se non trovato.
         """
         conn = self._connect()
         try:
@@ -97,30 +108,28 @@ class LDAPClient:
             )
             if not conn.entries:
                 return None
-            entry = conn.entries[0]
-            return {
-                "uid": str(entry.uid) if entry.uid else "",
-                "cn": str(entry.cn) if entry.cn else "",
-                "displayName": str(entry.displayName) if entry.displayName else "",
-                "sn": str(entry.sn) if entry.sn else "",
-                "telephoneNumber": str(entry.telephoneNumber) if entry.telephoneNumber else "",
-            }
+            return self._entry_to_dict(conn.entries[0])
         finally:
             conn.unbind()
 
-    def add_contact(self, uid, display_name, telephone):
+    def add_contact(self, uid, display_name, telephone, telephone2=""):
         """Aggiunge un nuovo contatto inetOrgPerson al server LDAP.
 
         Args:
             uid: identificativo univoco (usato anche come RDN).
             display_name: nome visualizzato (impostato anche come cn e sn).
-            telephone: numero di telefono con prefisso internazionale.
+            telephone: numero di telefono principale.
+            telephone2: secondo numero di telefono (opzionale).
 
         Raises:
             LDAPException: se l'operazione di aggiunta fallisce.
         """
         conn = self._connect()
         dn = f"uid={uid},{self.base_dn}"
+        # telephoneNumber e' multi-valore: salviamo uno o due numeri
+        phones = [telephone]
+        if telephone2:
+            phones.append(telephone2)
         # Struttura conforme allo schema inetOrgPerson usato dai telefoni VoIP
         attributes = {
             "objectClass": ["top", "person", "organizationalPerson", "inetOrgPerson"],
@@ -128,7 +137,7 @@ class LDAPClient:
             "cn": display_name,
             "displayName": display_name,
             "sn": display_name,
-            "telephoneNumber": telephone,
+            "telephoneNumber": phones,
         }
         try:
             success = conn.add(dn, attributes=attributes)
@@ -137,28 +146,33 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def update_contact(self, uid, display_name, telephone):
+    def update_contact(self, uid, display_name, telephone, telephone2=""):
         """Aggiorna un contatto esistente.
 
-        Modifica displayName, cn, sn e telephoneNumber.
+        Modifica displayName, cn, sn e telephoneNumber (uno o due valori).
         L'uid (usato come RDN) non viene modificato.
 
         Args:
             uid: identificativo del contatto da aggiornare.
             display_name: nuovo nome visualizzato.
-            telephone: nuovo numero di telefono.
+            telephone: nuovo numero di telefono principale.
+            telephone2: nuovo secondo numero di telefono (opzionale).
 
         Raises:
             LDAPException: se l'operazione di modifica fallisce.
         """
         conn = self._connect()
         dn = f"uid={uid},{self.base_dn}"
-        # MODIFY_REPLACE (2) sostituisce i valori esistenti degli attributi
+        # telephoneNumber e' multi-valore: salviamo uno o due numeri
+        phones = [telephone]
+        if telephone2:
+            phones.append(telephone2)
+        # MODIFY_REPLACE (2) sostituisce tutti i valori esistenti dell'attributo
         changes = {
             "cn": [(2, [display_name])],
             "displayName": [(2, [display_name])],
             "sn": [(2, [display_name])],
-            "telephoneNumber": [(2, [telephone])],
+            "telephoneNumber": [(2, phones)],
         }
         try:
             success = conn.modify(dn, changes)

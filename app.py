@@ -56,13 +56,15 @@ def index():
         flash(f"Errore di connessione LDAP: {e}", "danger")
         contacts = []
 
-    # Filtra i risultati se e' presente una query di ricerca
+    # Filtra i risultati se e' presente una query di ricerca (su entrambi i numeri)
     if search:
         q = search.lower()
         contacts = [
             c
             for c in contacts
-            if q in c["displayName"].lower() or q in c["telephoneNumber"]
+            if q in c["displayName"].lower()
+            or q in c["telephoneNumber"]
+            or q in c["telephoneNumber2"]
         ]
 
     return render_template("index.html", contacts=contacts, search=search)
@@ -79,31 +81,33 @@ def add_contact():
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         telephone = request.form.get("telephone", "").strip()
+        telephone2 = request.form.get("telephone2", "").strip()
 
         if not display_name or not telephone:
             flash("Nome e numero di telefono sono obbligatori.", "danger")
             return render_template(
-                "add.html", display_name=display_name, telephone=telephone
+                "add.html", display_name=display_name,
+                telephone=telephone, telephone2=telephone2,
             )
 
         # Genera l'uid dal nome (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
-            ldap.add_contact(uid, display_name, telephone)
-            log_action(
-                "aggiunto", uid,
-                f"Nome: {display_name}, Tel: {telephone}",
-                request.remote_addr,
-            )
+            ldap.add_contact(uid, display_name, telephone, telephone2)
+            detail = f"Nome: {display_name}, Tel: {telephone}"
+            if telephone2:
+                detail += f", Tel2: {telephone2}"
+            log_action("aggiunto", uid, detail, request.remote_addr)
             flash(f"Contatto '{display_name}' aggiunto con successo.", "success")
             return redirect(url_for("index"))
         except LDAPException as e:
             flash(f"Errore nell'aggiunta del contatto: {e}", "danger")
             return render_template(
-                "add.html", display_name=display_name, telephone=telephone
+                "add.html", display_name=display_name,
+                telephone=telephone, telephone2=telephone2,
             )
 
-    return render_template("add.html", display_name="", telephone="")
+    return render_template("add.html", display_name="", telephone="", telephone2="")
 
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
@@ -117,18 +121,22 @@ def edit_contact(uid):
     if request.method == "POST":
         display_name = request.form.get("display_name", "").strip()
         telephone = request.form.get("telephone", "").strip()
+        telephone2 = request.form.get("telephone2", "").strip()
 
         if not display_name or not telephone:
             flash("Nome e numero di telefono sono obbligatori.", "danger")
             return render_template(
                 "edit.html",
-                contact={"uid": uid, "displayName": display_name, "telephoneNumber": telephone},
+                contact={
+                    "uid": uid, "displayName": display_name,
+                    "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                },
             )
 
         try:
             # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
-            ldap.update_contact(uid, display_name, telephone)
+            ldap.update_contact(uid, display_name, telephone, telephone2)
 
             # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
@@ -136,6 +144,8 @@ def edit_contact(uid):
                 changes.append(f"Nome: {old_contact['displayName']} -> {display_name}")
             if old_contact and old_contact["telephoneNumber"] != telephone:
                 changes.append(f"Tel: {old_contact['telephoneNumber']} -> {telephone}")
+            if old_contact and old_contact.get("telephoneNumber2", "") != telephone2:
+                changes.append(f"Tel2: {old_contact.get('telephoneNumber2', '')} -> {telephone2}")
             log_action(
                 "modificato", uid,
                 "; ".join(changes) if changes else "Nessuna modifica rilevata",
@@ -147,7 +157,10 @@ def edit_contact(uid):
             flash(f"Errore nell'aggiornamento del contatto: {e}", "danger")
             return render_template(
                 "edit.html",
-                contact={"uid": uid, "displayName": display_name, "telephoneNumber": telephone},
+                contact={
+                    "uid": uid, "displayName": display_name,
+                    "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                },
             )
 
     try:
@@ -176,6 +189,8 @@ def delete_contact(uid):
         detail = ""
         if contact:
             detail = f"Nome: {contact['displayName']}, Tel: {contact['telephoneNumber']}"
+            if contact.get("telephoneNumber2"):
+                detail += f", Tel2: {contact['telephoneNumber2']}"
         log_action("eliminato", uid, detail, request.remote_addr)
         flash("Contatto eliminato con successo.", "success")
     except LDAPException as e:
