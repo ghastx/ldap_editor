@@ -40,10 +40,11 @@
         {% for contact in contacts %}
         <tr>
             <td>{{ contact.displayName }}</td>
+            {# Numeri cliccabili: avviano click-to-dial tramite il centralino UCM #}
             <td>
-                <a href="tel:{{ contact.telephoneNumber }}">{{ contact.telephoneNumber }}</a>
+                <a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber }}'); return false;">{{ contact.telephoneNumber }}</a>
                 {% if contact.telephoneNumber2 %}
-                    <br><a href="tel:{{ contact.telephoneNumber2 }}">{{ contact.telephoneNumber2 }}</a>
+                    <br><a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber2 }}'); return false;">{{ contact.telephoneNumber2 }}</a>
                 {% endif %}
             </td>
             <td class="actions">

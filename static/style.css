@@ -12,6 +12,9 @@
  *   8. Modale di conferma eliminazione
  *   9. Badge per il registro modifiche
  *  10. Stili specifici per la pagina log
+ *  11. Selettore interno VoIP (click-to-dial)
+ *  12. Toast notifications
+ *  13. Link telefonici click-to-dial
  *
  * Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
  */
@@ -60,10 +63,11 @@ header h1 a {
     text-decoration: none;
 }
 
-/* Menu di navigazione (Rubrica | Registro modifiche) */
+/* Menu di navigazione (Rubrica | Registro modifiche | Selettore interno) */
 nav {
     display: flex;
     gap: 16px;
+    align-items: center;
 }
 
 nav a {
@@ -395,4 +399,87 @@ h2 {
     color: #555;
     max-width: 300px;
     word-break: break-word;
+}
+
+/* ==========================================================================
+   11. Selettore interno VoIP (click-to-dial)
+   ========================================================================== */
+
+/* Dropdown compatto nella barra di navigazione */
+#extensionSelect {
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+#extensionSelect:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+/* ==========================================================================
+   12. Toast notifications (click-to-dial feedback)
+   ========================================================================== */
+
+/* Contenitore fisso in basso a destra */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.toast {
+    padding: 12px 20px;
+    border-radius: 4px;
+    color: white;
+    font-size: 14px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    animation: toast-in 0.3s ease;
+    max-width: 360px;
+}
+
+/* Chiamata in corso */
+.toast-info {
+    background: #2c3e50;
+}
+
+/* Errore */
+.toast-danger {
+    background: #e74c3c;
+}
+
+/* Dissolvenza in uscita */
+.toast-fade {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   13. Link telefonici click-to-dial
+   ========================================================================== */
+
+/* I numeri di telefono mantengono lo stile di link cliccabile */
+.phone-link {
+    color: #3498db;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.phone-link:hover {
+    text-decoration: underline;
 }

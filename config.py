@@ -46,3 +46,9 @@ class Config:
 
     # DN base sotto cui si trovano i contatti della rubrica
     LDAP_BASE_DN = os.environ.get("LDAP_BASE_DN", "dc=pbx,dc=com")
+
+    # Parametri di connessione al centralino Grandstream UCM6202
+    UCM_HOST = os.environ.get("UCM_HOST", "192.168.0.240")
+    UCM_PORT = int(os.environ.get("UCM_PORT", 8089))
+    UCM_API_USER = os.environ.get("UCM_API_USER", "cdrapi")
+    UCM_API_PASSWORD = os.environ.get("UCM_API_PASSWORD", "")

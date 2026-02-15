@@ -16,12 +16,15 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <https://www.gnu.org/licenses/>.
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+import re
+
+from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
 
 from audit_log import get_log, log_action
 from config import Config
 from ldap_client import LDAPClient
+from ucm_client import UCMClient, UCMError
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -36,6 +39,15 @@ ldap = LDAPClient(
         "LDAP_BIND_PASSWORD": app.config["LDAP_BIND_PASSWORD"],
         "LDAP_BASE_DN": app.config["LDAP_BASE_DN"],
     }
+)
+
+
+# Inizializza il client UCM per il click-to-dial
+ucm = UCMClient(
+    host=app.config["UCM_HOST"],
+    port=app.config["UCM_PORT"],
+    user=app.config["UCM_API_USER"],
+    password=app.config["UCM_API_PASSWORD"],
 )
 
 
@@ -203,6 +215,43 @@ def audit_log():
     """Visualizza il registro delle modifiche (ultime 200 operazioni)."""
     entries = get_log()
     return render_template("log.html", entries=entries)
+
+
+# --- API click-to-dial ---
+
+
+@app.route("/api/call", methods=["POST"])
+def api_call():
+    """Avvia una chiamata click-to-dial tramite il centralino UCM.
+
+    Riceve un JSON con 'extension' e 'number'. Il numero viene pulito
+    rimuovendo prefisso +39, spazi e trattini prima di inviarlo al PBX.
+
+    Returns:
+        JSON con 'ok': true/false e 'message' descrittivo.
+    """
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify(ok=False, message="Richiesta non valida."), 400
+
+    extension = data.get("extension", "").strip()
+    number = data.get("number", "").strip()
+
+    if not extension:
+        return jsonify(ok=False, message="Seleziona prima il tuo interno."), 400
+    if not number:
+        return jsonify(ok=False, message="Numero di telefono mancante."), 400
+
+    # Pulisce il numero: rimuove +39, spazi, trattini, parentesi
+    clean_number = re.sub(r"[^\d]", "", number)
+    if clean_number.startswith("39") and len(clean_number) > 10:
+        clean_number = clean_number[2:]
+
+    try:
+        ucm.dial_outbound(extension, clean_number)
+        return jsonify(ok=True, message=f"Chiamata in corso verso {clean_number}...")
+    except UCMError as e:
+        return jsonify(ok=False, message=str(e)), 502
 
 
 if __name__ == "__main__":

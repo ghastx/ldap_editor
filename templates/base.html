@@ -2,8 +2,8 @@
   base.html - Template base Jinja2
 
   Layout comune a tutte le pagine: intestazione con navigazione,
-  messaggi flash (notifiche di successo/errore) e blocco content
-  che viene sovrascritto dai template figli.
+  selettore interno VoIP, messaggi flash (notifiche di successo/errore),
+  toast per click-to-dial e blocco content sovrascritto dai template figli.
 
   Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 #}
@@ -19,10 +19,17 @@
     <div class="container">
         <header>
             <h1><a href="{{ url_for('index') }}">Rubrica LDAP</a></h1>
-            <!-- Navigazione principale -->
+            <!-- Navigazione principale e selettore interno -->
             <nav>
                 <a href="{{ url_for('index') }}">Rubrica</a>
                 <a href="{{ url_for('audit_log') }}">Registro modifiche</a>
+                {# Selettore dell'interno VoIP, salvato in localStorage #}
+                <select id="extensionSelect" title="Interno VoIP">
+                    <option value="">Seleziona interno...</option>
+                    {% for ext in range(1000, 1007) %}
+                        <option value="{{ ext }}">Interno {{ ext }}</option>
+                    {% endfor %}
+                </select>
             </nav>
         </header>
 
@@ -40,5 +47,62 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+
+    {# Contenitore toast per notifiche click-to-dial #}
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+    // --- Gestione interno VoIP (persistenza in localStorage) ---
+
+    (function() {
+        var sel = document.getElementById('extensionSelect');
+        // Ripristina l'interno salvato
+        var saved = localStorage.getItem('ucm_extension');
+        if (saved) sel.value = saved;
+
+        // Salva la selezione quando cambia
+        sel.addEventListener('change', function() {
+            localStorage.setItem('ucm_extension', this.value);
+        });
+    })();
+
+    // --- Toast notifications ---
+
+    function showToast(message, type) {
+        var container = document.getElementById('toastContainer');
+        var toast = document.createElement('div');
+        toast.className = 'toast toast-' + (type || 'info');
+        toast.textContent = message;
+        container.appendChild(toast);
+        // Auto-rimozione dopo 4 secondi
+        setTimeout(function() {
+            toast.classList.add('toast-fade');
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 4000);
+    }
+
+    // --- Click-to-dial ---
+
+    function clickToDial(number) {
+        var extension = document.getElementById('extensionSelect').value;
+        if (!extension) {
+            showToast('Seleziona prima il tuo interno', 'danger');
+            return;
+        }
+        showToast('Chiamata in corso verso ' + number + '...', 'info');
+        fetch('/api/call', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({extension: extension, number: number})
+        })
+        .then(function(resp) { return resp.json(); })
+        .then(function(data) {
+            if (!data.ok) showToast(data.message, 'danger');
+        })
+        .catch(function() {
+            showToast('Errore di connessione al server.', 'danger');
+        });
+    }
+    </script>
 </body>
 </html>
