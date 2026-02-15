@@ -166,8 +166,8 @@ class UCMClient:
                 "request": {
                     "action": "dialOutbound",
                     "cookie": cookie,
-                    "extension": str(extension),
-                    "externalNumber": str(external_number),
+                    "caller": str(extension),
+                    "callee": str(external_number),
                 }
             })
         except UCMError:
@@ -178,8 +178,8 @@ class UCMClient:
                 "request": {
                     "action": "dialOutbound",
                     "cookie": cookie,
-                    "extension": str(extension),
-                    "externalNumber": str(external_number),
+                    "caller": str(extension),
+                    "callee": str(external_number),
                 }
             })
 
