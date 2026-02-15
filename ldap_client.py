@@ -59,11 +59,15 @@ class LDAPClient:
         """
         # telephoneNumber e' multi-valore: estraiamo la lista dei valori
         phones = list(entry.telephoneNumber) if entry.telephoneNumber else []
+        given_name = ""
+        if hasattr(entry, "givenName") and entry.givenName:
+            given_name = str(entry.givenName)
         return {
             "uid": str(entry.uid) if entry.uid else "",
             "cn": str(entry.cn) if entry.cn else "",
             "displayName": str(entry.displayName) if entry.displayName else "",
             "sn": str(entry.sn) if entry.sn else "",
+            "givenName": given_name,
             "telephoneNumber": str(phones[0]) if len(phones) > 0 else "",
             "telephoneNumber2": str(phones[1]) if len(phones) > 1 else "",
         }
@@ -80,7 +84,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 "(objectClass=inetOrgPerson)",
-                attributes=["uid", "cn", "displayName", "sn", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "telephoneNumber"],
             )
             contacts = [self._entry_to_dict(entry) for entry in conn.entries]
             contacts.sort(key=lambda c: c["displayName"].lower())
@@ -104,7 +108,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 f"(&(objectClass=inetOrgPerson)(uid={_escape_ldap_filter(uid)}))",
-                attributes=["uid", "cn", "displayName", "sn", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "telephoneNumber"],
             )
             if not conn.entries:
                 return None
@@ -112,14 +116,16 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def add_contact(self, uid, display_name, telephone, telephone2=""):
+    def add_contact(self, uid, display_name, sn, telephone, telephone2="", given_name=""):
         """Aggiunge un nuovo contatto inetOrgPerson al server LDAP.
 
         Args:
             uid: identificativo univoco (usato anche come RDN).
-            display_name: nome visualizzato (impostato anche come cn e sn).
+            display_name: nome visualizzato (impostato anche come cn).
+            sn: cognome o ragione sociale.
             telephone: numero di telefono principale.
             telephone2: secondo numero di telefono (opzionale).
+            given_name: nome proprio (opzionale, per le persone).
 
         Raises:
             LDAPException: se l'operazione di aggiunta fallisce.
@@ -136,9 +142,11 @@ class LDAPClient:
             "uid": uid,
             "cn": display_name,
             "displayName": display_name,
-            "sn": display_name,
+            "sn": sn,
             "telephoneNumber": phones,
         }
+        if given_name:
+            attributes["givenName"] = given_name
         try:
             success = conn.add(dn, attributes=attributes)
             if not success:
@@ -146,17 +154,19 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def update_contact(self, uid, display_name, telephone, telephone2=""):
+    def update_contact(self, uid, display_name, sn, telephone, telephone2="", given_name=""):
         """Aggiorna un contatto esistente.
 
-        Modifica displayName, cn, sn e telephoneNumber (uno o due valori).
+        Modifica displayName, cn, sn, givenName e telephoneNumber.
         L'uid (usato come RDN) non viene modificato.
 
         Args:
             uid: identificativo del contatto da aggiornare.
             display_name: nuovo nome visualizzato.
+            sn: nuovo cognome o ragione sociale.
             telephone: nuovo numero di telefono principale.
             telephone2: nuovo secondo numero di telefono (opzionale).
+            given_name: nuovo nome proprio (opzionale).
 
         Raises:
             LDAPException: se l'operazione di modifica fallisce.
@@ -168,12 +178,18 @@ class LDAPClient:
         if telephone2:
             phones.append(telephone2)
         # MODIFY_REPLACE (2) sostituisce tutti i valori esistenti dell'attributo
+        # MODIFY_DELETE (1) rimuove l'attributo
         changes = {
             "cn": [(2, [display_name])],
             "displayName": [(2, [display_name])],
-            "sn": [(2, [display_name])],
+            "sn": [(2, [sn])],
             "telephoneNumber": [(2, phones)],
         }
+        if given_name:
+            changes["givenName"] = [(2, [given_name])]
+        else:
+            # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
+            changes["givenName"] = [(1, [])]
         try:
             success = conn.modify(dn, changes)
             if not success:

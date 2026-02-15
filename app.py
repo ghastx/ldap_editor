@@ -88,24 +88,28 @@ def add_contact():
 
     GET: mostra il form vuoto.
     POST: valida i dati, crea l'entry LDAP e registra l'operazione nel log.
-    L'uid viene generato automaticamente dal nome rimuovendo gli spazi.
+    Il displayName viene composto da givenName + sn (o solo sn per le aziende).
+    L'uid viene generato dal displayName rimuovendo gli spazi.
     """
     if request.method == "POST":
-        display_name = request.form.get("display_name", "").strip()
+        given_name = request.form.get("given_name", "").strip()
+        sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
         telephone2 = request.form.get("telephone2", "").strip()
 
-        if not display_name or not telephone:
-            flash("Nome e numero di telefono sono obbligatori.", "danger")
+        if not sn or not telephone:
+            flash("Cognome/Ragione Sociale e numero di telefono sono obbligatori.", "danger")
             return render_template(
-                "add.html", display_name=display_name,
+                "add.html", given_name=given_name, sn=sn,
                 telephone=telephone, telephone2=telephone2,
             )
 
-        # Genera l'uid dal nome (stesso pattern delle entry esistenti)
+        # Compone il displayName da givenName + sn
+        display_name = f"{given_name} {sn}" if given_name else sn
+        # Genera l'uid dal displayName (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
-            ldap.add_contact(uid, display_name, telephone, telephone2)
+            ldap.add_contact(uid, display_name, sn, telephone, telephone2, given_name)
             detail = f"Nome: {display_name}, Tel: {telephone}"
             if telephone2:
                 detail += f", Tel2: {telephone2}"
@@ -115,11 +119,11 @@ def add_contact():
         except LDAPException as e:
             flash(f"Errore nell'aggiunta del contatto: {e}", "danger")
             return render_template(
-                "add.html", display_name=display_name,
+                "add.html", given_name=given_name, sn=sn,
                 telephone=telephone, telephone2=telephone2,
             )
 
-    return render_template("add.html", display_name="", telephone="", telephone2="")
+    return render_template("add.html", given_name="", sn="", telephone="", telephone2="")
 
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
@@ -131,24 +135,29 @@ def edit_contact(uid):
           nel log solo i campi effettivamente cambiati.
     """
     if request.method == "POST":
-        display_name = request.form.get("display_name", "").strip()
+        given_name = request.form.get("given_name", "").strip()
+        sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
         telephone2 = request.form.get("telephone2", "").strip()
 
-        if not display_name or not telephone:
-            flash("Nome e numero di telefono sono obbligatori.", "danger")
+        if not sn or not telephone:
+            flash("Cognome/Ragione Sociale e numero di telefono sono obbligatori.", "danger")
             return render_template(
                 "edit.html",
                 contact={
-                    "uid": uid, "displayName": display_name,
+                    "uid": uid, "displayName": f"{given_name} {sn}" if given_name else sn,
+                    "sn": sn, "givenName": given_name,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
                 },
             )
 
+        # Compone il displayName da givenName + sn
+        display_name = f"{given_name} {sn}" if given_name else sn
+
         try:
             # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
-            ldap.update_contact(uid, display_name, telephone, telephone2)
+            ldap.update_contact(uid, display_name, sn, telephone, telephone2, given_name)
 
             # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
@@ -171,6 +180,7 @@ def edit_contact(uid):
                 "edit.html",
                 contact={
                     "uid": uid, "displayName": display_name,
+                    "sn": sn, "givenName": given_name,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
                 },
             )
