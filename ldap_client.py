@@ -62,12 +62,16 @@ class LDAPClient:
         given_name = ""
         if hasattr(entry, "givenName") and entry.givenName:
             given_name = str(entry.givenName)
+        title = ""
+        if hasattr(entry, "title") and entry.title:
+            title = str(entry.title)
         return {
             "uid": str(entry.uid) if entry.uid else "",
             "cn": str(entry.cn) if entry.cn else "",
             "displayName": str(entry.displayName) if entry.displayName else "",
             "sn": str(entry.sn) if entry.sn else "",
             "givenName": given_name,
+            "title": title,
             "telephoneNumber": str(phones[0]) if len(phones) > 0 else "",
             "telephoneNumber2": str(phones[1]) if len(phones) > 1 else "",
         }
@@ -84,7 +88,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 "(objectClass=inetOrgPerson)",
-                attributes=["uid", "cn", "displayName", "sn", "givenName", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
             )
             contacts = [self._entry_to_dict(entry) for entry in conn.entries]
             contacts.sort(key=lambda c: c["displayName"].lower())
@@ -108,7 +112,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 f"(&(objectClass=inetOrgPerson)(uid={_escape_ldap_filter(uid)}))",
-                attributes=["uid", "cn", "displayName", "sn", "givenName", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
             )
             if not conn.entries:
                 return None
@@ -116,7 +120,7 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def add_contact(self, uid, display_name, sn, telephone, telephone2="", given_name=""):
+    def add_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title=""):
         """Aggiunge un nuovo contatto inetOrgPerson al server LDAP.
 
         Args:
@@ -126,6 +130,7 @@ class LDAPClient:
             telephone: numero di telefono principale.
             telephone2: secondo numero di telefono (opzionale).
             given_name: nome proprio (opzionale, per le persone).
+            title: titolo (opzionale, es. "Dott.", "Ing.").
 
         Raises:
             LDAPException: se l'operazione di aggiunta fallisce.
@@ -147,6 +152,8 @@ class LDAPClient:
         }
         if given_name:
             attributes["givenName"] = given_name
+        if title:
+            attributes["title"] = title
         try:
             success = conn.add(dn, attributes=attributes)
             if not success:
@@ -154,10 +161,10 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def update_contact(self, uid, display_name, sn, telephone, telephone2="", given_name=""):
+    def update_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title=""):
         """Aggiorna un contatto esistente.
 
-        Modifica displayName, cn, sn, givenName e telephoneNumber.
+        Modifica displayName, cn, sn, givenName, title e telephoneNumber.
         L'uid (usato come RDN) non viene modificato.
 
         Args:
@@ -167,6 +174,7 @@ class LDAPClient:
             telephone: nuovo numero di telefono principale.
             telephone2: nuovo secondo numero di telefono (opzionale).
             given_name: nuovo nome proprio (opzionale).
+            title: nuovo titolo (opzionale).
 
         Raises:
             LDAPException: se l'operazione di modifica fallisce.
@@ -190,6 +198,11 @@ class LDAPClient:
         else:
             # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
             changes["givenName"] = [(1, [])]
+        if title:
+            changes["title"] = [(2, [title])]
+        else:
+            # Rimuove title se il campo e' vuoto
+            changes["title"] = [(1, [])]
         try:
             success = conn.modify(dn, changes)
             if not success:

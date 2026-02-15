@@ -92,6 +92,7 @@ def add_contact():
     L'uid viene generato dal displayName rimuovendo gli spazi.
     """
     if request.method == "POST":
+        title = request.form.get("title", "").strip()
         given_name = request.form.get("given_name", "").strip()
         sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
@@ -100,16 +101,16 @@ def add_contact():
         if not sn or not telephone:
             flash("Cognome/Ragione Sociale e numero di telefono sono obbligatori.", "danger")
             return render_template(
-                "add.html", given_name=given_name, sn=sn,
+                "add.html", title=title, given_name=given_name, sn=sn,
                 telephone=telephone, telephone2=telephone2,
             )
 
-        # Compone il displayName da givenName + sn
-        display_name = f"{given_name} {sn}" if given_name else sn
+        # Compone il displayName dai campi non vuoti: titolo + nome + cognome
+        display_name = " ".join(part for part in [title, given_name, sn] if part)
         # Genera l'uid dal displayName (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
-            ldap.add_contact(uid, display_name, sn, telephone, telephone2, given_name)
+            ldap.add_contact(uid, display_name, sn, telephone, telephone2, given_name, title)
             detail = f"Nome: {display_name}, Tel: {telephone}"
             if telephone2:
                 detail += f", Tel2: {telephone2}"
@@ -119,11 +120,11 @@ def add_contact():
         except LDAPException as e:
             flash(f"Errore nell'aggiunta del contatto: {e}", "danger")
             return render_template(
-                "add.html", given_name=given_name, sn=sn,
+                "add.html", title=title, given_name=given_name, sn=sn,
                 telephone=telephone, telephone2=telephone2,
             )
 
-    return render_template("add.html", given_name="", sn="", telephone="", telephone2="")
+    return render_template("add.html", title="", given_name="", sn="", telephone="", telephone2="")
 
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
@@ -135,6 +136,7 @@ def edit_contact(uid):
           nel log solo i campi effettivamente cambiati.
     """
     if request.method == "POST":
+        title = request.form.get("title", "").strip()
         given_name = request.form.get("given_name", "").strip()
         sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
@@ -145,19 +147,20 @@ def edit_contact(uid):
             return render_template(
                 "edit.html",
                 contact={
-                    "uid": uid, "displayName": f"{given_name} {sn}" if given_name else sn,
-                    "sn": sn, "givenName": given_name,
+                    "uid": uid,
+                    "displayName": " ".join(part for part in [title, given_name, sn] if part),
+                    "sn": sn, "givenName": given_name, "title": title,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
                 },
             )
 
-        # Compone il displayName da givenName + sn
-        display_name = f"{given_name} {sn}" if given_name else sn
+        # Compone il displayName dai campi non vuoti: titolo + nome + cognome
+        display_name = " ".join(part for part in [title, given_name, sn] if part)
 
         try:
             # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
-            ldap.update_contact(uid, display_name, sn, telephone, telephone2, given_name)
+            ldap.update_contact(uid, display_name, sn, telephone, telephone2, given_name, title)
 
             # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
@@ -180,7 +183,7 @@ def edit_contact(uid):
                 "edit.html",
                 contact={
                     "uid": uid, "displayName": display_name,
-                    "sn": sn, "givenName": given_name,
+                    "sn": sn, "givenName": given_name, "title": title,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
                 },
             )

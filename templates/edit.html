@@ -18,9 +18,14 @@
 
 <form method="post" class="contact-form">
     <div class="form-group">
+        <label for="title">Titolo <span class="label-optional">(opzionale)</span></label>
+        <input type="text" id="title" name="title"
+               value="{{ contact.title }}" autofocus placeholder="es. Dott., Ing.">
+    </div>
+    <div class="form-group">
         <label for="given_name">Nome <span class="label-optional">(opzionale)</span></label>
         <input type="text" id="given_name" name="given_name"
-               value="{{ contact.givenName }}" autofocus>
+               value="{{ contact.givenName }}">
     </div>
     <div class="form-group">
         <label for="sn">Cognome / Ragione Sociale</label>
