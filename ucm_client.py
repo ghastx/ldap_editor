@@ -167,7 +167,7 @@ class UCMClient:
                     "action": "dialOutbound",
                     "cookie": cookie,
                     "caller": str(extension),
-                    "callee": str(external_number),
+                    "outbound": str(external_number),
                 }
             })
         except UCMError:
@@ -179,7 +179,7 @@ class UCMClient:
                     "action": "dialOutbound",
                     "cookie": cookie,
                     "caller": str(extension),
-                    "callee": str(external_number),
+                    "outbound": str(external_number),
                 }
             })
 
