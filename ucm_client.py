@@ -17,13 +17,33 @@
 # with this program; if not, see <https://www.gnu.org/licenses/>.
 
 import hashlib
+import ssl
 import time
 
 import requests
+import requests.adapters
 import urllib3
+from urllib3.util.ssl_ import create_urllib3_context
 
 # Disabilita i warning SSL per il certificato self-signed del UCM
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+
+class LegacySSLAdapter(requests.adapters.HTTPAdapter):
+    """Adapter HTTPS che abbassa il livello di sicurezza SSL.
+
+    Il centralino Grandstream UCM6202 usa una chiave Diffie-Hellman
+    troppo corta (DH_KEY_TOO_SMALL) che le versioni recenti di OpenSSL
+    rifiutano. Questo adapter imposta SECLEVEL=1 per accettarla.
+    """
+
+    def init_poolmanager(self, *args, **kwargs):
+        ctx = create_urllib3_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.set_ciphers('DEFAULT:@SECLEVEL=1')
+        kwargs['ssl_context'] = ctx
+        return super().init_poolmanager(*args, **kwargs)
 
 
 class UCMClient:
@@ -51,6 +71,8 @@ class UCMClient:
         self.password = password
         self._cookie = None
         self._cookie_time = 0
+        self._session = requests.Session()
+        self._session.mount('https://', LegacySSLAdapter())
 
     def _request(self, payload):
         """Invia una richiesta POST all'API UCM.
@@ -65,7 +87,7 @@ class UCMClient:
             UCMError: se la richiesta fallisce o il server risponde con errore.
         """
         try:
-            resp = requests.post(
+            resp = self._session.post(
                 self.base_url,
                 json=payload,
                 verify=False,
