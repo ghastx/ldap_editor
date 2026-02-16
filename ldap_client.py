@@ -198,9 +198,9 @@ class LDAPClient:
         if given_name:
             changes["givenName"] = [(2, [given_name])]
         else:
-        # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
-        # Usa MODIFY_REPLACE (2) con lista vuota invece di MODIFY_DELETE (1)
-        # Questo non da errore se l'attributo non esiste
+            # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
+            # Usa MODIFY_REPLACE (2) con lista vuota invece di MODIFY_DELETE (1)
+            # Questo non da errore se l'attributo non esiste
             changes["givenName"] = [(2, [])]
         if title:
             changes["title"] = [(2, [title])]
