@@ -193,16 +193,22 @@ class LDAPClient:
             "sn": [(2, [sn])],
             "telephoneNumber": [(2, phones)],
         }
+        # MODIFY_REPLACE (funzione numero 2 funziona sia per aggiungere che per sostituire,
+        # e non da errore se l'attributo non esiste ancora
         if given_name:
             changes["givenName"] = [(2, [given_name])]
         else:
-            # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
-            changes["givenName"] = [(1, [])]
+        # Rimuove givenName se il campo e' vuoto (es. ragione sociale)
+        # Usa MODIFY_REPLACE (2) con lista vuota invece di MODIFY_DELETE (1)
+        # Questo non da errore se l'attributo non esiste
+            changes["givenName"] = [(2, [])]
         if title:
             changes["title"] = [(2, [title])]
         else:
             # Rimuove title se il campo e' vuoto
-            changes["title"] = [(1, [])]
+            # Usa MODIFY_REPLACE (2) con lista vuota invece di MODIFY_DELETE (1)
+            # Questo non da errore se l'attributo non esiste
+            changes["title"] = [(2, [])]
         try:
             success = conn.modify(dn, changes)
             if not success:
