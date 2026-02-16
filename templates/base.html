@@ -6,6 +6,11 @@
   toast per click-to-dial e blocco content sovrascritto dai template figli.
 
   Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+
+  Favicon: "☎" (260e.svg) from Twitter Twemoji
+  - Author: Copyright 2020 Twitter, Inc and other contributors
+  - Source: https://github.com/twitter/twemoji
+  - License: CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 #}
 <!DOCTYPE html>
 <html lang="it">
@@ -13,6 +18,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rubrica LDAP</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
