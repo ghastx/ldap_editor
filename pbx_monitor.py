@@ -60,8 +60,11 @@ class PBXMonitor:
     """Monitor WebSocket per eventi chiamate del centralino UCM6202.
 
     Attributi pubblici (thread-safe tramite lock):
-        active_calls: dict delle chiamate attive, indicizzato per uniqueid.
+        active_calls: dict delle chiamate attive, indicizzato per linkedid.
         extension_status: dict stato interni, indicizzato per extension.
+
+    Le chiamate sono raggruppate per linkedid (il PBX assegna lo stesso
+    linkedid a tutti i canali di una stessa chiamata, inclusi ring group).
     """
 
     def __init__(self, host, port, user, password):
@@ -70,8 +73,8 @@ class PBXMonitor:
         Args:
             host: indirizzo IP o hostname del centralino.
             port: porta WebSocket (di solito 8089).
-            user: nome utente API (es. "cdrapi").
-            password: password dell'utente API.
+            user: nome utente di accesso al PBX (es. "adminpbx").
+            password: password dell'utente PBX.
         """
         self.ws_url = f"wss://{host}:{port}/websockify"
         self.user = user
@@ -86,6 +89,13 @@ class PBXMonitor:
         # Coda per notificare eventi ai consumer (es. SSE endpoint)
         self._event_queues = []
         self._queues_lock = threading.Lock()
+
+        # Mapping interni per tracciare i canali di ogni chiamata.
+        # Acceduti solo dal thread asyncio, non serve lock.
+        # channel_map: channel_name → linkedid
+        # call_channels: linkedid → set(channel_name)
+        self._channel_map = {}
+        self._call_channels = {}
 
         # Stato interno asyncio
         self._ws = None
@@ -180,6 +190,8 @@ class PBXMonitor:
                 with self._lock:
                     self.active_calls.clear()
                     self.extension_status.clear()
+                self._channel_map.clear()
+                self._call_channels.clear()
 
             if self._running:
                 logger.info(
@@ -401,59 +413,107 @@ class PBXMonitor:
                 )
 
     def _handle_unbridge(self, action, entry, uniqueid):
-        """Gestisce eventi unbridge (squillo, riaggancio)."""
-        state = entry.get("state", "")
-        callernum = entry.get("callernum", "")
-        connectednum = entry.get("connectednum", "")
-        callername = entry.get("callername", "")
+        """Gestisce eventi unbridge (squillo, riaggancio).
+
+        Le chiamate sono raggruppate per linkedid. Per un ring group,
+        il PBX invia un evento per ogni interno che squilla, tutti con
+        lo stesso linkedid. Mostriamo UNA sola entry per chiamata.
+
+        Nei canali extension il PBX inverte la prospettiva:
+        - callernum = interno che squilla (es. "1000")
+        - connectednum = chiamante esterno (es. "3283259080")
+        Per il frontend serviamo il chiamante esterno come callernum.
+
+        Gli eventi delete contengono solo "channel" (no uniqueid),
+        quindi usiamo _channel_map per risalire al linkedid.
+        """
+        channel = entry.get("channel", "")
+        linkedid = entry.get("linkedid", uniqueid or channel)
 
         if action in ("add", "update"):
+            # Traccia il mapping channel → linkedid
+            if channel and linkedid:
+                self._channel_map[channel] = linkedid
+                self._call_channels.setdefault(linkedid, set()).add(channel)
+
+            state = entry.get("state", "")
             if state in ("Ring", "Ringing"):
-                call_info = {
-                    "uniqueid": uniqueid,
-                    "state": "ringing",
-                    "callernum": callernum,
-                    "connectednum": connectednum,
-                    "callername": callername,
-                }
+                # Ignora i canali trunk: le notifiche si basano sui
+                # canali extension che hanno il numero esterno in connectednum
+                if entry.get("inbound_trunk_name"):
+                    return
+
+                callernum = entry.get("callernum", "")
+                connectednum = entry.get("connectednum", "")
+                connectedname = entry.get("connectedname", "") or ""
+
                 with self._lock:
-                    self.active_calls[uniqueid] = call_info
+                    existing = self.active_calls.get(linkedid)
+                    if existing and existing["state"] == "ringing":
+                        # Altro interno dello stesso ring group: aggiorna la lista
+                        exts = existing.get("extensions", [])
+                        if callernum and callernum not in exts:
+                            exts.append(callernum)
+                        return  # Non inviare evento duplicato
+
+                    # Nuova chiamata in arrivo: il chiamante esterno e'
+                    # in connectednum, l'interno che squilla e' in callernum
+                    call_info = {
+                        "uniqueid": linkedid,
+                        "state": "ringing",
+                        "callernum": connectednum,
+                        "callername": connectedname,
+                        "connectednum": callernum,
+                        "extensions": [callernum] if callernum else [],
+                    }
+                    self.active_calls[linkedid] = call_info
 
                 logger.info(
-                    "Squillo: %s (%s) -> %s",
-                    callernum, callername, connectednum,
+                    "Squillo: %s -> interni %s",
+                    connectednum, callernum,
                 )
                 self._broadcast_event({
                     "event": "call_ring",
-                    "uniqueid": uniqueid,
-                    "callernum": callernum,
-                    "connectednum": connectednum,
-                    "callername": callername,
+                    "uniqueid": linkedid,
+                    "callernum": connectednum,
+                    "connectednum": callernum,
+                    "callername": connectedname,
                 })
-
-            elif state == "Down":
-                with self._lock:
-                    removed = self.active_calls.pop(uniqueid, None)
-                if removed:
-                    logger.info("Chiamata terminata (down): %s", uniqueid)
-                    self._broadcast_event({
-                        "event": "call_hangup",
-                        "uniqueid": uniqueid,
-                    })
 
         elif action == "delete":
-            with self._lock:
-                removed = self.active_calls.pop(uniqueid, None)
-            if removed:
-                logger.info("Chiamata rimossa (unbridge delete): %s", uniqueid)
-                self._broadcast_event({
-                    "event": "call_hangup",
-                    "uniqueid": uniqueid,
-                })
+            # I delete hanno solo "channel", non "uniqueid"
+            linked = self._channel_map.pop(channel, None) if channel else None
+            if linked:
+                channels = self._call_channels.get(linked, set())
+                channels.discard(channel)
+                if not channels:
+                    # Tutti i canali rimossi → chiamata terminata
+                    self._call_channels.pop(linked, None)
+                    with self._lock:
+                        removed = self.active_calls.pop(linked, None)
+                    if removed:
+                        logger.info("Chiamata terminata: %s", linked)
+                        self._broadcast_event({
+                            "event": "call_hangup",
+                            "uniqueid": linked,
+                        })
 
     def _handle_bridge(self, action, entry, uniqueid):
-        """Gestisce eventi bridge (chiamata connessa)."""
+        """Gestisce eventi bridge (chiamata connessa).
+
+        Quando un interno risponde, il PBX crea un bridge con entrambe
+        le parti. Usiamo linkedid per sostituire l'entry "ringing"
+        con una "connected", cosi' il badge passa da squillo a connesso.
+        """
+        channel = entry.get("channel", "")
+        linkedid = entry.get("linkedid", uniqueid or channel)
+
         if action in ("add", "update"):
+            # Traccia il canale bridge
+            if channel and linkedid:
+                self._channel_map[channel] = linkedid
+                self._call_channels.setdefault(linkedid, set()).add(channel)
+
             callerid1 = entry.get("callerid1", "")
             callerid2 = entry.get("callerid2", "")
             name1 = entry.get("name1", "")
@@ -461,7 +521,7 @@ class PBXMonitor:
             bridge_time = entry.get("bridge_time", "")
 
             call_info = {
-                "uniqueid": uniqueid,
+                "uniqueid": linkedid,
                 "state": "connected",
                 "callerid1": callerid1,
                 "callerid2": callerid2,
@@ -470,7 +530,7 @@ class PBXMonitor:
                 "bridge_time": bridge_time,
             }
             with self._lock:
-                self.active_calls[uniqueid] = call_info
+                self.active_calls[linkedid] = call_info
 
             logger.info(
                 "Chiamata connessa: %s (%s) <-> %s (%s)",
@@ -478,7 +538,7 @@ class PBXMonitor:
             )
             self._broadcast_event({
                 "event": "call_connect",
-                "uniqueid": uniqueid,
+                "uniqueid": linkedid,
                 "callerid1": callerid1,
                 "callerid2": callerid2,
                 "name1": name1,
@@ -487,14 +547,23 @@ class PBXMonitor:
             })
 
         elif action == "delete":
-            with self._lock:
-                removed = self.active_calls.pop(uniqueid, None)
-            if removed:
-                logger.info("Chiamata terminata (bridge delete): %s", uniqueid)
-                self._broadcast_event({
-                    "event": "call_hangup",
-                    "uniqueid": uniqueid,
-                })
+            # Come per unbridge, i delete hanno solo "channel"
+            linked = self._channel_map.pop(channel, None) if channel else None
+            if linked:
+                channels = self._call_channels.get(linked, set())
+                channels.discard(channel)
+                if not channels:
+                    self._call_channels.pop(linked, None)
+                    with self._lock:
+                        removed = self.active_calls.pop(linked, None)
+                    if removed:
+                        logger.info(
+                            "Chiamata terminata (bridge delete): %s", linked
+                        )
+                        self._broadcast_event({
+                            "event": "call_hangup",
+                            "uniqueid": linked,
+                        })
 
     # ------------------------------------------------------------------
     # Broadcasting eventi ai subscriber (code thread-safe)
