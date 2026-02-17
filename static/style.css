@@ -483,3 +483,182 @@ h2 {
 .phone-link:hover {
     text-decoration: underline;
 }
+
+/* ==========================================================================
+   14. Indicatore chiamate attive (navbar)
+   ========================================================================== */
+
+.call-indicator {
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+    color: #95a5a6;
+    transition: color 0.2s;
+}
+
+.call-indicator:hover {
+    color: #3498db;
+}
+
+/* Quando ci sono chiamate attive, l'icona diventa colorata */
+.call-indicator-active {
+    color: #27ae60;
+}
+
+.call-indicator-icon {
+    display: block;
+}
+
+/* Badge numerico sovrapposto all'icona */
+.call-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    background: #e74c3c;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 8px;
+    min-width: 16px;
+    text-align: center;
+}
+
+/* Pannello dropdown con lista chiamate attive */
+.call-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    min-width: 260px;
+    z-index: 1500;
+    overflow: hidden;
+}
+
+.call-panel-open {
+    display: block;
+}
+
+.call-panel-header {
+    padding: 10px 14px;
+    background: #2c3e50;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.call-panel-body {
+    max-height: 240px;
+    overflow-y: auto;
+}
+
+.call-panel-empty {
+    padding: 16px 14px;
+    color: #999;
+    font-size: 13px;
+    text-align: center;
+}
+
+.call-panel-item {
+    padding: 10px 14px;
+    font-size: 13px;
+    border-bottom: 1px solid #eee;
+}
+
+.call-panel-item:last-child {
+    border-bottom: none;
+}
+
+.call-panel-ringing {
+    background: #fef9e7;
+}
+
+.call-panel-connected {
+    background: #eafaf1;
+}
+
+.call-panel-state {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-right: 4px;
+}
+
+.call-panel-ringing .call-panel-state {
+    background: #f9e79f;
+    color: #7d6608;
+}
+
+.call-panel-connected .call-panel-state {
+    background: #a9dfbf;
+    color: #1e8449;
+}
+
+/* ==========================================================================
+   15. Banner chiamate in corso (alto a destra)
+   ========================================================================== */
+
+.call-banner-container {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 340px;
+}
+
+.call-banner {
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: white;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+    animation: call-banner-in 0.3s ease;
+}
+
+.call-banner strong {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 14px;
+}
+
+/* Chiamata in arrivo (squilla) */
+.call-banner-ringing {
+    background: #e67e22;
+    animation: call-banner-in 0.3s ease, call-banner-pulse 2s ease-in-out infinite;
+}
+
+/* Chiamata connessa */
+.call-banner-connected {
+    background: #27ae60;
+}
+
+/* Dissolvenza in uscita */
+.call-banner-fade {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+@keyframes call-banner-in {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes call-banner-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.8; }
+}

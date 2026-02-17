@@ -290,6 +290,25 @@ def api_call():
 # --- API monitor chiamate ---
 
 
+@app.route("/api/lookup/<number>")
+def api_lookup(number):
+    """Cerca un contatto nella rubrica LDAP tramite numero di telefono.
+
+    Usato dal frontend per risolvere il nome del chiamante durante
+    le notifiche di chiamata in arrivo.
+
+    Returns:
+        JSON con 'name' (displayName) se trovato, altrimenti null.
+    """
+    try:
+        contact = ldap.search_by_phone(number)
+        if contact:
+            return jsonify(name=contact["displayName"])
+        return jsonify(name=None)
+    except LDAPException:
+        return jsonify(name=None)
+
+
 @app.route("/api/calls")
 def api_calls():
     """Restituisce le chiamate attive correnti in formato JSON."""

@@ -37,6 +37,20 @@
                         <option value="{{ ext }}">Interno {{ ext }}</option>
                     {% endfor %}
                 </select>
+                {# Indicatore chiamate attive con badge numerico #}
+                <div class="call-indicator" id="callIndicator" title="Chiamate attive">
+                    <svg class="call-indicator-icon" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                        <path d="M6.62 10.79a15.05 15.05 0 006.59 6.59l2.2-2.2a1 1 0 011.01-.24 11.36 11.36 0 003.58.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.36 11.36 0 00.57 3.58 1 1 0 01-.25 1.02l-2.2 2.19z"/>
+                    </svg>
+                    <span class="call-badge" id="callBadge" style="display:none">0</span>
+                    {# Pannello dropdown con dettaglio chiamate attive #}
+                    <div class="call-panel" id="callPanel">
+                        <div class="call-panel-header">Chiamate attive</div>
+                        <div class="call-panel-body" id="callPanelBody">
+                            <div class="call-panel-empty">Nessuna chiamata</div>
+                        </div>
+                    </div>
+                </div>
             </nav>
         </header>
 
@@ -55,8 +69,11 @@
         </main>
     </div>
 
-    {# Contenitore toast per notifiche click-to-dial #}
+    {# Contenitore toast per notifiche click-to-dial (basso a destra) #}
     <div id="toastContainer" class="toast-container"></div>
+
+    {# Contenitore banner chiamate in corso (alto a destra) #}
+    <div id="callBannerContainer" class="call-banner-container"></div>
 
     <script>
     // --- Gestione interno VoIP (persistenza in localStorage) ---
@@ -73,7 +90,7 @@
         });
     })();
 
-    // --- Toast notifications ---
+    // --- Toast notifications (click-to-dial feedback) ---
 
     function showToast(message, type) {
         var container = document.getElementById('toastContainer');
@@ -110,6 +127,272 @@
             showToast('Errore di connessione al server.', 'danger');
         });
     }
+
+    // =====================================================================
+    // Monitor chiamate PBX (SSE + Notification API + banner in-page)
+    // =====================================================================
+
+    (function() {
+        // Stato locale delle chiamate attive (specchia il server)
+        var activeCalls = {};
+        // Cache nomi risolti per numero di telefono
+        var nameCache = {};
+
+        // --- Indicatore chiamate nella navbar ---
+
+        var callBadge = document.getElementById('callBadge');
+        var callIndicator = document.getElementById('callIndicator');
+        var callPanel = document.getElementById('callPanel');
+        var callPanelBody = document.getElementById('callPanelBody');
+
+        // Toggle pannello chiamate attive al click sull'indicatore
+        callIndicator.addEventListener('click', function(e) {
+            e.stopPropagation();
+            callPanel.classList.toggle('call-panel-open');
+        });
+        // Chiudi il pannello cliccando fuori
+        document.addEventListener('click', function() {
+            callPanel.classList.remove('call-panel-open');
+        });
+        callPanel.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        function updateBadge() {
+            var count = Object.keys(activeCalls).length;
+            if (count > 0) {
+                callBadge.textContent = count;
+                callBadge.style.display = '';
+                callIndicator.classList.add('call-indicator-active');
+            } else {
+                callBadge.style.display = 'none';
+                callIndicator.classList.remove('call-indicator-active');
+            }
+            updatePanel();
+        }
+
+        function updatePanel() {
+            var keys = Object.keys(activeCalls);
+            if (keys.length === 0) {
+                callPanelBody.innerHTML = '<div class="call-panel-empty">Nessuna chiamata</div>';
+                return;
+            }
+            var html = '';
+            keys.forEach(function(id) {
+                var c = activeCalls[id];
+                if (c.state === 'ringing') {
+                    var name = c.displayName || c.callername || c.callernum || '?';
+                    html += '<div class="call-panel-item call-panel-ringing">'
+                          + '<span class="call-panel-state">Squilla</span> '
+                          + escapeHtml(name)
+                          + ' &#8594; ' + escapeHtml(c.connectednum || '')
+                          + '</div>';
+                } else if (c.state === 'connected') {
+                    html += '<div class="call-panel-item call-panel-connected">'
+                          + '<span class="call-panel-state">In corso</span> '
+                          + escapeHtml(c.name1 || c.callerid1 || '?')
+                          + ' &#8596; '
+                          + escapeHtml(c.name2 || c.callerid2 || '?')
+                          + '</div>';
+                }
+            });
+            callPanelBody.innerHTML = html;
+        }
+
+        function escapeHtml(str) {
+            var div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // --- Banner chiamate (alto a destra) ---
+
+        var bannerContainer = document.getElementById('callBannerContainer');
+
+        function showCallBanner(id, html, type) {
+            removeCallBanner(id, true);
+            var banner = document.createElement('div');
+            banner.className = 'call-banner call-banner-' + type;
+            banner.id = 'call-banner-' + id;
+            banner.innerHTML = html;
+            bannerContainer.appendChild(banner);
+        }
+
+        function removeCallBanner(id, immediate) {
+            var banner = document.getElementById('call-banner-' + id);
+            if (!banner) return;
+            if (immediate) {
+                banner.remove();
+            } else {
+                banner.classList.add('call-banner-fade');
+                setTimeout(function() { banner.remove(); }, 300);
+            }
+        }
+
+        // --- Notifiche browser ---
+
+        // Richiedi permesso Notification API (solo contesti sicuri: HTTPS o localhost)
+        var notificationsSupported = ('Notification' in window);
+        if (notificationsSupported && Notification.permission === 'default') {
+            // Ritarda la richiesta di 2 secondi per non essere troppo invadente
+            setTimeout(function() {
+                Notification.requestPermission();
+            }, 2000);
+        }
+
+        function showBrowserNotification(title, body) {
+            if (!notificationsSupported || Notification.permission !== 'granted') return;
+            try {
+                var n = new Notification(title, {
+                    body: body,
+                    icon: '{{ url_for("static", filename="favicon-32x32.png") }}',
+                    tag: 'pbx-call',
+                    renotify: true
+                });
+                // Chiudi automaticamente dopo 8 secondi
+                setTimeout(function() { n.close(); }, 8000);
+            } catch(e) {
+                // Notification API non disponibile (es. HTTP non-localhost)
+            }
+        }
+
+        // --- Lookup nome chiamante dalla rubrica LDAP ---
+
+        function lookupName(number, callback) {
+            if (!number) { callback(null); return; }
+            if (nameCache[number] !== undefined) {
+                callback(nameCache[number]);
+                return;
+            }
+            fetch('/api/lookup/' + encodeURIComponent(number))
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    nameCache[number] = data.name || null;
+                    callback(nameCache[number]);
+                })
+                .catch(function() {
+                    callback(null);
+                });
+        }
+
+        // --- Gestione eventi SSE ---
+
+        function handleCallRing(data) {
+            var num = data.callernum || '';
+            var name = data.callername || '';
+            var dest = data.connectednum || '';
+            var uid = data.uniqueid || '';
+
+            // Salva nello stato locale
+            activeCalls[uid] = {
+                state: 'ringing',
+                callernum: num,
+                callername: name,
+                connectednum: dest
+            };
+
+            // Cerca il nome nella rubrica LDAP
+            lookupName(num, function(ldapName) {
+                var displayName = ldapName || name || num;
+                activeCalls[uid].displayName = displayName;
+                updateBadge();
+
+                // Banner in-page
+                showCallBanner(uid,
+                    '<strong>Chiamata in arrivo</strong><br>'
+                    + 'Da: ' + escapeHtml(displayName)
+                    + (displayName !== num && num ? ' (' + escapeHtml(num) + ')' : '')
+                    + ' &#8594; ' + escapeHtml(dest),
+                    'ringing'
+                );
+
+                // Notifica browser
+                var body = 'Da: ' + displayName;
+                if (displayName !== num && num) body += ' (' + num + ')';
+                showBrowserNotification('Chiamata in arrivo', body);
+            });
+        }
+
+        function handleCallConnect(data) {
+            var uid = data.uniqueid || '';
+            activeCalls[uid] = {
+                state: 'connected',
+                callerid1: data.callerid1 || '',
+                callerid2: data.callerid2 || '',
+                name1: data.name1 || '',
+                name2: data.name2 || ''
+            };
+            updateBadge();
+
+            var label1 = data.name1 || data.callerid1 || '?';
+            var label2 = data.name2 || data.callerid2 || '?';
+            showCallBanner(uid,
+                '<strong>In chiamata</strong><br>'
+                + escapeHtml(label1) + ' &#8596; ' + escapeHtml(label2),
+                'connected'
+            );
+        }
+
+        function handleCallHangup(data) {
+            var uid = data.uniqueid || '';
+            delete activeCalls[uid];
+            updateBadge();
+            // Rimuovi il banner con dissolvenza dopo 3 secondi
+            setTimeout(function() {
+                removeCallBanner(uid, false);
+            }, 3000);
+        }
+
+        function handleExtensionStatus(data) {
+            // Aggiornamento silenzioso, loggato solo in console
+        }
+
+        // --- Connessione EventSource con riconnessione automatica ---
+
+        var evtSource = null;
+
+        function connectSSE() {
+            if (evtSource) {
+                evtSource.close();
+            }
+            evtSource = new EventSource('/api/events');
+
+            evtSource.addEventListener('call_ring', function(e) {
+                handleCallRing(JSON.parse(e.data));
+            });
+            evtSource.addEventListener('call_connect', function(e) {
+                handleCallConnect(JSON.parse(e.data));
+            });
+            evtSource.addEventListener('call_hangup', function(e) {
+                handleCallHangup(JSON.parse(e.data));
+            });
+            evtSource.addEventListener('extension_status', function(e) {
+                handleExtensionStatus(JSON.parse(e.data));
+            });
+
+            evtSource.onerror = function() {
+                // EventSource riconnette automaticamente, ma se chiuso
+                // dal server riprova dopo 5 secondi
+                if (evtSource.readyState === EventSource.CLOSED) {
+                    setTimeout(connectSSE, 5000);
+                }
+            };
+        }
+
+        // Carica lo stato iniziale delle chiamate attive e avvia SSE
+        fetch('/api/calls')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                (data.calls || []).forEach(function(c) {
+                    if (c.uniqueid) activeCalls[c.uniqueid] = c;
+                });
+                updateBadge();
+            })
+            .catch(function() {})
+            .finally(function() {
+                connectSSE();
+            });
+    })();
     </script>
 </body>
 </html>

@@ -216,6 +216,29 @@ class LDAPClient:
         finally:
             conn.unbind()
 
+    def search_by_phone(self, number):
+        """Cerca un contatto tramite il numero di telefono.
+
+        Args:
+            number: numero di telefono da cercare (match esatto).
+
+        Returns:
+            Dizionario con i dati del contatto, oppure None se non trovato.
+        """
+        conn = self._connect()
+        try:
+            safe_number = _escape_ldap_filter(number)
+            conn.search(
+                self.base_dn,
+                f"(&(objectClass=inetOrgPerson)(telephoneNumber={safe_number}))",
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
+            )
+            if not conn.entries:
+                return None
+            return self._entry_to_dict(conn.entries[0])
+        finally:
+            conn.unbind()
+
     def delete_contact(self, uid):
         """Elimina un contatto dal server LDAP.
 
