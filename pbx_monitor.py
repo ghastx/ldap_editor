@@ -174,6 +174,12 @@ class PBXMonitor:
                 logger.warning("Connessione PBX persa: %s", e)
             except Exception:
                 logger.exception("Errore imprevisto nella connessione PBX")
+            finally:
+                # Pulisce lo stato quando la connessione cade per evitare
+                # dati stale (le chiamate attive non sono piu' verificabili)
+                with self._lock:
+                    self.active_calls.clear()
+                    self.extension_status.clear()
 
             if self._running:
                 logger.info(
@@ -189,6 +195,7 @@ class PBXMonitor:
             self.ws_url,
             ssl=self._ssl_ctx,
             ping_interval=None,  # heartbeat gestito manualmente
+            open_timeout=10,
             close_timeout=5,
         ) as ws:
             self._ws = ws

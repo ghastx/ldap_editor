@@ -10,6 +10,7 @@ Frontend web per la gestione di una rubrica telefonica memorizzata su un server 
 - **Modifica** di nome e numeri di telefono
 - **Eliminazione** con modale di conferma
 - **Click-to-dial** tramite centralino Grandstream UCM6202: cliccando un numero nella rubrica, il telefono VoIP dell'operatore squilla e, alla risposta, viene chiamato il contatto
+- **Monitor chiamate in tempo reale** via WebSocket: visualizza le chiamate attive con banner/notifiche browser e indicatore nella navbar
 - **Selettore interno** persistente (interni 1000-1006), salvato nel browser
 - **Registro modifiche** (audit log) con storico di tutte le operazioni, dettagli dei campi modificati e indirizzo IP dell'operatore
 
@@ -72,11 +73,21 @@ python app.py
 
 L'applicazione sara' disponibile su `http://localhost:5000`.
 
-Per ambienti di produzione si consiglia di usare un server WSGI come Gunicorn:
+### Produzione con Gunicorn e gevent
+
+In produzione l'app gira con Gunicorn e worker **gevent** (necessario per il supporto SSE e il monitor chiamate in tempo reale). E' importante usare **1 solo worker** perche' il thread del monitor PBX deve essere condiviso tra tutte le connessioni.
 
 ```bash
-pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:5000 app:app
+pip install gunicorn gevent
+gunicorn -w 1 -k gevent -b 0.0.0.0:5000 app:app
+```
+
+Un file `ldap-editor.service` per systemd e' incluso nel repository. Per installarlo:
+
+```bash
+sudo cp ldap-editor.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now ldap-editor
 ```
 
 ## Click-to-dial
@@ -90,33 +101,66 @@ L'integrazione con il centralino Grandstream UCM6202 permette di avviare chiamat
    - Quando l'operatore risponde, il centralino chiama il numero del contatto
 3. Una notifica toast conferma l'avvio della chiamata o segnala eventuali errori.
 
+## Monitor chiamate in tempo reale
+
+L'app si connette al centralino via WebSocket (`wss://host:8089/websockify`) e riceve gli eventi sulle chiamate in tempo reale. Le notifiche vengono inviate al browser tramite Server-Sent Events (SSE).
+
+### Funzionamento
+
+- All'avvio, un thread background si connette al PBX via WebSocket
+- Si autentica con challenge/response MD5 (stesso utente `cdrapi` del click-to-dial)
+- Si sottoscrive agli eventi `ExtensionStatus` e `ActiveCallStatus`
+- Invia un heartbeat ogni 30 secondi per mantenere la sessione
+- Se la connessione cade, riprova automaticamente ogni 10 secondi
+
+### Interfaccia utente
+
+- **Indicatore nella navbar**: icona telefono con badge numerico che mostra il conteggio delle chiamate attive. Cliccandoci si apre un pannello con i dettagli
+- **Banner in-page** (alto a destra): mostrano le chiamate in arrivo (arancione) e connesse (verde), scompaiono 3 secondi dopo il riaggancio
+- **Notifiche browser** (Notification API): popup del sistema operativo per le chiamate in arrivo, con il nome del chiamante se presente nella rubrica LDAP
+- **Lookup rubrica**: quando arriva una chiamata, il numero viene cercato nella rubrica LDAP per mostrare il nome del contatto
+
+### Notifiche browser
+
+Le notifiche browser (Notification API) richiedono un **contesto sicuro**:
+
+- **HTTPS** (con certificato valido o self-signed accettato dal browser)
+- **localhost** (per lo sviluppo locale)
+
+Se l'app gira su **HTTP in rete locale**, le notifiche browser **non funzioneranno**. In questo caso funzionano comunque i banner in-page e l'indicatore nella navbar, che non richiedono HTTPS.
+
+Per abilitare le notifiche browser in rete locale, configurare un reverse proxy (es. nginx) con HTTPS e un certificato self-signed o Let's Encrypt.
+
 ### Note tecniche
 
 - L'autenticazione con il UCM usa un flusso challenge/response con token MD5
 - La sessione API viene mantenuta in cache e rinnovata automaticamente (scadenza 5 minuti)
-- Il centralino usa un certificato SSL self-signed; le verifiche SSL sono disabilitate per le chiamate API
-- I numeri vengono puliti prima dell'invio: rimossi prefisso `+39`, spazi, trattini e parentesi
+- Il centralino usa un certificato SSL self-signed; le verifiche SSL sono disabilitate sia per l'API HTTPS che per il WebSocket
+- I numeri vengono puliti prima dell'invio click-to-dial: rimossi prefisso `+39`, spazi, trattini e parentesi
+- Gunicorn deve usare worker **gevent** con **1 solo worker** per supportare le connessioni SSE long-lived e condividere il thread del monitor PBX
 
 ## Struttura del progetto
 
 ```
 ldap_editor/
-├── app.py              # Applicazione Flask (route e logica)
-├── config.py           # Configurazione da variabili d'ambiente
-├── ldap_client.py      # Client LDAP per operazioni CRUD
-├── ucm_client.py       # Client API Grandstream UCM6202 (click-to-dial)
-├── audit_log.py        # Registro modifiche su SQLite
-├── requirements.txt    # Dipendenze Python
-├── .env.example        # Template configurazione
-├── LICENSE             # Licenza GPL-2.0
+├── app.py                  # Applicazione Flask (route, API, SSE)
+├── config.py               # Configurazione da variabili d'ambiente
+├── ldap_client.py          # Client LDAP per operazioni CRUD
+├── ucm_client.py           # Client API Grandstream UCM6202 (click-to-dial)
+├── pbx_monitor.py          # Monitor chiamate WebSocket (tempo reale)
+├── audit_log.py            # Registro modifiche su SQLite
+├── requirements.txt        # Dipendenze Python
+├── .env.example            # Template configurazione
+├── ldap-editor.service     # Unit systemd per Gunicorn + gevent
+├── LICENSE                 # Licenza GPL-2.0
 ├── templates/
-│   ├── base.html       # Template base con layout, navigazione e selettore interno
-│   ├── index.html      # Elenco contatti con ricerca e click-to-dial
-│   ├── add.html        # Form nuovo contatto (2 numeri)
-│   ├── edit.html       # Form modifica contatto (2 numeri)
-│   └── log.html        # Registro delle modifiche
+│   ├── base.html           # Template base con layout, navigazione e monitor chiamate
+│   ├── index.html          # Elenco contatti con ricerca e click-to-dial
+│   ├── add.html            # Form nuovo contatto (2 numeri)
+│   ├── edit.html           # Form modifica contatto (2 numeri)
+│   └── log.html            # Registro delle modifiche
 └── static/
-    └── style.css       # Stili dell'interfaccia
+    └── style.css           # Stili dell'interfaccia
 ```
 
 ## Struttura LDAP dei contatti
@@ -156,10 +200,38 @@ Avvia una chiamata click-to-dial tramite il centralino UCM.
 {"ok": true, "message": "Chiamata in corso verso 0585372760..."}
 ```
 
-In caso di errore:
+### GET /api/calls
+
+Restituisce le chiamate attive correnti.
+
+**Response** (JSON):
 ```json
-{"ok": false, "message": "Errore di connessione al centralino: ..."}
+{
+  "calls": [
+    {"uniqueid": "abc", "state": "connected", "callerid1": "1001", "callerid2": "0512345678", "name1": "Interno 1001", "name2": "Mario Rossi"}
+  ]
+}
 ```
+
+### GET /api/events
+
+Endpoint Server-Sent Events (SSE) per lo streaming in tempo reale degli eventi PBX. Il browser si connette con `EventSource` e riceve eventi tipizzati:
+
+- `call_ring` — chiamata in arrivo (squillo)
+- `call_connect` — chiamata connessa (risposta)
+- `call_hangup` — chiamata terminata
+- `extension_status` — cambio stato interno
+
+### GET /api/lookup/\<number\>
+
+Cerca un contatto nella rubrica LDAP tramite numero di telefono.
+
+**Response** (JSON):
+```json
+{"name": "Mario Rossi"}
+```
+
+Se il numero non e' in rubrica: `{"name": null}`
 
 ## Licenza
 
