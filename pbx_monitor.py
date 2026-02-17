@@ -268,7 +268,10 @@ class PBXMonitor:
             "version": "1",
         })
         resp = await self._recv_response(ws)
-        challenge = resp.get("response", {}).get("challenge")
+        challenge = (
+            resp.get("message", {}).get("challenge")
+            or resp.get("response", {}).get("challenge")
+        )
         if not challenge:
             raise RuntimeError(
                 f"Challenge non ricevuto dal PBX: {resp}"
@@ -282,10 +285,11 @@ class PBXMonitor:
         await self._send(ws, {
             "action": "login",
             "token": token,
-            "url": self.ws_url,
+            "username": self.user,
         })
         resp = await self._recv_response(ws)
-        status = resp.get("status")
+        msg = resp.get("message", {})
+        status = msg.get("status") if isinstance(msg, dict) else resp.get("status")
         if status != 0:
             raise RuntimeError(
                 f"Login PBX fallito (status={status}): {resp}"
@@ -299,7 +303,8 @@ class PBXMonitor:
             "eventnames": ["ExtensionStatus", "ActiveCallStatus"],
         })
         resp = await self._recv_response(ws)
-        status = resp.get("status")
+        msg = resp.get("message", {})
+        status = msg.get("status") if isinstance(msg, dict) else resp.get("status")
         if status != 0:
             logger.warning("Subscribe PBX status=%s: %s", status, resp)
         else:
@@ -321,7 +326,11 @@ class PBXMonitor:
     # ------------------------------------------------------------------
 
     async def _receive_loop(self, ws):
-        """Riceve messaggi dal PBX e li smista al gestore appropriato."""
+        """Riceve messaggi dal PBX e li smista al gestore appropriato.
+
+        Il PBX puo' inviare "message" sia come singolo oggetto che come
+        array di oggetti (notifiche multiple nello stesso frame).
+        """
         async for raw in ws:
             try:
                 data = json.loads(raw)
@@ -331,17 +340,22 @@ class PBXMonitor:
 
             logger.debug("RX: %s", json.dumps(data, ensure_ascii=False)[:500])
 
-            msg = data.get("message", {})
-            action = msg.get("action", "")
+            raw_msg = data.get("message", {})
+            # Il PBX puo' mandare message come dict o come lista di dict
+            messages = raw_msg if isinstance(raw_msg, list) else [raw_msg]
 
-            if action == "notify":
-                eventname = msg.get("eventname", "")
-                if eventname == "ExtensionStatus":
-                    self._handle_extension_status(msg)
-                elif eventname == "ActiveCallStatus":
-                    self._handle_active_call_status(msg)
-                else:
-                    logger.debug("Evento notify sconosciuto: %s", eventname)
+            for msg in messages:
+                if not isinstance(msg, dict):
+                    continue
+                action = msg.get("action", "")
+                if action == "notify":
+                    eventname = msg.get("eventname", "")
+                    if eventname == "ExtensionStatus":
+                        self._handle_extension_status(msg)
+                    elif eventname == "ActiveCallStatus":
+                        self._handle_active_call_status(msg)
+                    else:
+                        logger.debug("Evento notify sconosciuto: %s", eventname)
 
     def _handle_extension_status(self, msg):
         """Gestisce un evento ExtensionStatus.

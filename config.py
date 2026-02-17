@@ -52,3 +52,8 @@ class Config:
     UCM_PORT = int(os.environ.get("UCM_PORT", 8089))
     UCM_API_USER = os.environ.get("UCM_API_USER", "cdrapi")
     UCM_API_PASSWORD = os.environ.get("UCM_API_PASSWORD", "")
+
+    # Credenziali di accesso al PBX per il monitor chiamate WebSocket
+    # (possono differire dalle credenziali API usate per il click-to-dial)
+    PBX_API_USER = os.environ.get("PBX_API_USER", "adminpbx")
+    PBX_API_PASSWORD = os.environ.get("PBX_API_PASSWORD", "")

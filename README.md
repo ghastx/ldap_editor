@@ -61,9 +61,11 @@ cp .env.example .env
 | Variabile | Descrizione | Default |
 |---|---|---|
 | `UCM_HOST` | Indirizzo IP del centralino Grandstream | `192.168.0.240` |
-| `UCM_PORT` | Porta HTTPS dell'API UCM | `8089` |
-| `UCM_API_USER` | Utente API del centralino | `cdrapi` |
-| `UCM_API_PASSWORD` | Password dell'utente API | *(vuoto)* |
+| `UCM_PORT` | Porta HTTPS/WSS del centralino | `8089` |
+| `UCM_API_USER` | Utente API per click-to-dial (es. `cdrapi`) | `cdrapi` |
+| `UCM_API_PASSWORD` | Password dell'utente API click-to-dial | *(vuoto)* |
+| `PBX_API_USER` | Utente admin PBX per il monitor chiamate WebSocket | `adminpbx` |
+| `PBX_API_PASSWORD` | Password dell'utente admin PBX | *(vuoto)* |
 
 ## Avvio
 

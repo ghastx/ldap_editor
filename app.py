@@ -61,12 +61,12 @@ ucm = UCMClient(
 )
 
 # Inizializza e avvia il monitor chiamate PBX in un thread background.
-# Usa gli stessi parametri UCM (stesso centralino, stessa porta, stesso utente API).
+# Usa credenziali PBX dedicate (possono differire da quelle API click-to-dial).
 pbx = PBXMonitor(
     host=app.config["UCM_HOST"],
     port=app.config["UCM_PORT"],
-    user=app.config["UCM_API_USER"],
-    password=app.config["UCM_API_PASSWORD"],
+    user=app.config["PBX_API_USER"],
+    password=app.config["PBX_API_PASSWORD"],
 )
 pbx.start()
 
