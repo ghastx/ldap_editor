@@ -16,15 +16,25 @@
 # You should have received a copy of the GNU General Public License along
 # with this program; if not, see <https://www.gnu.org/licenses/>.
 
+import json
+import logging
+import queue
 import re
 
-from flask import Flask, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
 
 from audit_log import get_log, log_action
 from config import Config
 from ldap_client import LDAPClient
+from pbx_monitor import PBXMonitor
 from ucm_client import UCMClient, UCMError
+
+# Configura il logging per vedere i messaggi del PBX monitor
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -49,6 +59,16 @@ ucm = UCMClient(
     user=app.config["UCM_API_USER"],
     password=app.config["UCM_API_PASSWORD"],
 )
+
+# Inizializza e avvia il monitor chiamate PBX in un thread background.
+# Usa gli stessi parametri UCM (stesso centralino, stessa porta, stesso utente API).
+pbx = PBXMonitor(
+    host=app.config["UCM_HOST"],
+    port=app.config["UCM_PORT"],
+    user=app.config["UCM_API_USER"],
+    password=app.config["UCM_API_PASSWORD"],
+)
+pbx.start()
 
 
 # --- Route principali ---
@@ -265,6 +285,52 @@ def api_call():
         return jsonify(ok=True, message=f"Chiamata in corso verso {clean_number}...")
     except UCMError as e:
         return jsonify(ok=False, message=str(e)), 502
+
+
+# --- API monitor chiamate ---
+
+
+@app.route("/api/calls")
+def api_calls():
+    """Restituisce le chiamate attive correnti in formato JSON."""
+    return jsonify(calls=list(pbx.get_active_calls().values()))
+
+
+@app.route("/api/events")
+def api_events():
+    """Endpoint Server-Sent Events per lo streaming degli eventi PBX.
+
+    Ogni client SSE riceve una coda dedicata. Il monitor PBX vi inserisce
+    gli eventi in tempo reale. Un commento keepalive viene inviato ogni
+    30 secondi per rilevare connessioni interrotte.
+
+    Richiede Gunicorn con worker gevent (1 greenlet per connessione SSE).
+    """
+    q = queue.Queue()
+    pbx.subscribe_events(q)
+
+    def stream():
+        try:
+            while True:
+                try:
+                    event = q.get(timeout=30)
+                except queue.Empty:
+                    # Keepalive: commento SSE per mantenere la connessione
+                    yield ":keepalive\n\n"
+                    continue
+
+                event_type = event.pop("event", "message")
+                data = json.dumps(event, ensure_ascii=False)
+                yield f"event: {event_type}\ndata: {data}\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            pbx.unsubscribe_events(q)
+
+    return Response(stream(), mimetype="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })
 
 
 if __name__ == "__main__":
