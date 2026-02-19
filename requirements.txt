@@ -4,3 +4,4 @@ python-dotenv==1.0.1
 requests==2.32.3
 websockets==14.1
 gevent==24.11.1
+phonenumbers==8.13.55

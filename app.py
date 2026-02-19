@@ -20,6 +20,7 @@ import json
 import logging
 import queue
 import re
+import phonenumbers
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
@@ -69,6 +70,26 @@ pbx = PBXMonitor(
     password=app.config["PBX_API_PASSWORD"],
 )
 pbx.start()
+
+# --- normalizza numero di telefono ---
+
+def normalize_number(number):
+    """Normalizza il numero nel formato E.164 (+39...) usando la libreria phonenumbers."""
+    if not number:
+        return None
+
+    try:
+        # Tenta il parsing assumendo l'Italia come regione predefinita
+        parsed = phonenumbers.parse(number, "IT")
+        
+        # Verifica se il numero è formalmente valido
+        if not phonenumbers.is_valid_number(parsed):
+            return None
+            
+        # Ritorna il numero nel formato internazionale E.164 (es: +39...)
+        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
+    except phonenumbers.NumberParseException:
+        return None
 
 
 # --- Route principali ---
@@ -125,12 +146,23 @@ def add_contact():
                 telephone=telephone, telephone2=telephone2,
             )
 
+        # Normalizza i numeri prima del salvataggio
+        norm_tel = normalize_number(telephone)
+        norm_tel2 = normalize_number(telephone2) if telephone2 else ""
+
+        if not norm_tel or (telephone2 and not norm_tel2):
+            flash("I numeri di telefono non sono nel formato corretto.", "danger")
+            return render_template(
+                "add.html", title=title, given_name=given_name, sn=sn,
+                telephone=telephone, telephone2=telephone2,
+            )
+
         # Compone il displayName dai campi non vuoti: titolo + nome + cognome
         display_name = " ".join(part for part in [title, given_name, sn] if part)
         # Genera l'uid dal displayName (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
-            ldap.add_contact(uid, display_name, sn, telephone, telephone2, given_name, title)
+            ldap.add_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title)
             detail = f"Nome: {display_name}, Tel: {telephone}"
             if telephone2:
                 detail += f", Tel2: {telephone2}"
@@ -174,13 +206,29 @@ def edit_contact(uid):
                 },
             )
 
+        # Normalizza i numeri prima del salvataggio
+        norm_tel = normalize_number(telephone)
+        norm_tel2 = normalize_number(telephone2) if telephone2 else ""
+
+        if not norm_tel or (telephone2 and not norm_tel2):
+            flash("I numeri di telefono non sono nel formato corretto.", "danger")
+            return render_template(
+                "edit.html",
+                contact={
+                    "uid": uid,
+                    "displayName": " ".join(part for part in [title, given_name, sn] if part),
+                    "sn": sn, "givenName": given_name, "title": title,
+                    "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                },
+            )
+
         # Compone il displayName dai campi non vuoti: titolo + nome + cognome
         display_name = " ".join(part for part in [title, given_name, sn] if part)
 
         try:
             # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
-            ldap.update_contact(uid, display_name, sn, telephone, telephone2, given_name, title)
+            ldap.update_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title)
 
             # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
@@ -257,8 +305,8 @@ def audit_log():
 def api_call():
     """Avvia una chiamata click-to-dial tramite il centralino UCM.
 
-    Riceve un JSON con 'extension' e 'number'. Il numero viene pulito
-    rimuovendo prefisso +39, spazi e trattini prima di inviarlo al PBX.
+    Riceve un JSON con 'extension' e 'number'. Il numero viene inviato
+    direttamente al PBX poiché è già normalizzato nella rubrica.
 
     Returns:
         JSON con 'ok': true/false e 'message' descrittivo.
@@ -275,14 +323,12 @@ def api_call():
     if not number:
         return jsonify(ok=False, message="Numero di telefono mancante."), 400
 
-    # Pulisce il numero: rimuove +39, spazi, trattini, parentesi
-    clean_number = re.sub(r"[^\d]", "", number)
-    if clean_number.startswith("39") and len(clean_number) > 10:
-        clean_number = clean_number[2:]
+    # Invia il numero così come arriva (è già normalizzato E.164 nella rubrica)
+    display_number = number.strip("+39")
 
     try:
-        ucm.dial_outbound(extension, clean_number)
-        return jsonify(ok=True, message=f"Chiamata in corso verso {clean_number}...")
+        ucm.dial_outbound(extension, number)
+        return jsonify(ok=True, message=f"Chiamata in corso verso {display_number}...")
     except UCMError as e:
         return jsonify(ok=False, message=str(e)), 502
 
@@ -300,6 +346,10 @@ def api_lookup(number):
     Returns:
         JSON con 'name' (displayName) se trovato, altrimenti null.
     """
+    # Pulisce il numero: rimuove +39, spazi, trattini, parentesi
+    number = normalize_number(number)
+    if not number:
+        return jsonify(name=None)
     try:
         contact = ldap.search_by_phone(number)
         if contact:
