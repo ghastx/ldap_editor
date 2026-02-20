@@ -469,12 +469,15 @@ class PBXMonitor:
 
                 with self._lock:
                     existing = self.active_calls.get(linkedid)
-                    if existing and existing["state"] == "ringing":
-                        # Altro interno dello stesso ring group: aggiorna la lista
-                        exts = existing.get("extensions", [])
-                        if callernum and callernum not in exts:
-                            exts.append(callernum)
-                        return  # Non inviare evento duplicato
+                    if existing:
+                        if existing["state"] == "ringing":
+                            # Altro interno dello stesso ring group: aggiorna la lista
+                            exts = existing.get("extensions", [])
+                            if callernum and callernum not in exts:
+                                exts.append(callernum)
+                        # Chiamata gia' tracciata (ringing o connected):
+                        # non generare una nuova notifica ring
+                        return
 
                     # Nuova chiamata in arrivo: il chiamante esterno e'
                     # in connectednum, l'interno che squilla e' in callernum
