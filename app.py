@@ -18,6 +18,7 @@
 
 import json
 import logging
+import os
 import queue
 import re
 import phonenumbers
@@ -69,7 +70,12 @@ pbx = PBXMonitor(
     user=app.config["PBX_API_USER"],
     password=app.config["PBX_API_PASSWORD"],
 )
-pbx.start()
+# Avvia il monitor solo una volta: in produzione (gunicorn) oppure nel
+# child process del reloader Werkzeug. Con debug=True, Werkzeug avvia
+# due processi (Main e Child) ed entrambi eseguono il codice a livello
+# di modulo. Solo il child ha WERKZEUG_RUN_MAIN="true".
+if not app.debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    pbx.start()
 
 # --- normalizza numero di telefono ---
 
