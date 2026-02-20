@@ -18,6 +18,7 @@
 
 import json
 import logging
+import os
 import queue
 import re
 import phonenumbers
@@ -69,7 +70,17 @@ pbx = PBXMonitor(
     user=app.config["PBX_API_USER"],
     password=app.config["PBX_API_PASSWORD"],
 )
-pbx.start()
+# Avvia il monitor solo una volta. Con debug=True, Werkzeug avvia due
+# processi (Main e Child). Solo il child ha WERKZEUG_RUN_MAIN="true".
+# NOTA: non si può usare app.debug perché qui è ancora False (viene
+# impostato da app.run() più sotto). Identifichiamo il processo Main
+# del reloader come: WERKZEUG_RUN_MAIN non settato E __name__ == "__main__".
+# In gunicorn __name__ != "__main__", quindi il monitor si avvia normalmente.
+_is_reloader_main = (
+    os.environ.get("WERKZEUG_RUN_MAIN") is None and __name__ == "__main__"
+)
+if not _is_reloader_main:
+    pbx.start()
 
 # --- normalizza numero di telefono ---
 
