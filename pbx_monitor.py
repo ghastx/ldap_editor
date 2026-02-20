@@ -542,6 +542,14 @@ class PBXMonitor:
             if linkedid not in self._incoming_linkedids:
                 return
 
+            # Processa solo chiamate gia' viste in fase di squillo.
+            # Esclude le chiamate in uscita che transitano dal trunk
+            # (il PBX popola inbound_trunk_name anche per le uscenti)
+            # ma non generano un evento Ring sugli interni.
+            with self._lock:
+                if linkedid not in self.active_calls:
+                    return
+
             callerid1 = entry.get("callerid1", "")
             callerid2 = entry.get("callerid2", "")
             name1 = entry.get("name1", "")
