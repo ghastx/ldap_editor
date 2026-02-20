@@ -323,14 +323,8 @@
                 name2: data.name2 || ''
             };
             updateBadge();
-
-            var label1 = data.name1 || data.callerid1 || '?';
-            var label2 = data.name2 || data.callerid2 || '?';
-            showCallBanner(uid,
-                '<strong>In chiamata</strong><br>'
-                + escapeHtml(label1) + ' &#8596; ' + escapeHtml(label2),
-                'connected'
-            );
+            // Aggiorna solo lo stato nel pannello, nessun banner visibile
+            removeCallBanner(uid, true);
         }
 
         function handleCallHangup(data) {

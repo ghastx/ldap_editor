@@ -96,6 +96,10 @@ class PBXMonitor:
         # call_channels: linkedid → set(channel_name)
         self._channel_map = {}
         self._call_channels = {}
+        # Set di linkedid di chiamate in ingresso esterne.
+        # Popolato quando si riceve un evento trunk con inbound_trunk_name.
+        # Accesso solo dal thread asyncio, non serve lock.
+        self._incoming_linkedids = set()
 
         # Stato interno asyncio
         self._ws = None
@@ -192,6 +196,7 @@ class PBXMonitor:
                     self.extension_status.clear()
                 self._channel_map.clear()
                 self._call_channels.clear()
+                self._incoming_linkedids.clear()
 
             if self._running:
                 logger.info(
@@ -398,6 +403,13 @@ class PBXMonitor:
         - chantype=unbridge (squillo/hangup): action add/update/delete
         """
         eventbody = msg.get("eventbody", [])
+        # Ordina: prima i canali trunk (con inbound_trunk_name) cosi' il
+        # loro linkedid viene registrato in _incoming_linkedids prima di
+        # processare i canali extension corrispondenti.
+        eventbody = sorted(
+            eventbody,
+            key=lambda e: (0 if e.get("inbound_trunk_name") else 1),
+        )
         for entry in eventbody:
             chantype = entry.get("chantype", "")
             action = entry.get("action", "")
@@ -438,9 +450,17 @@ class PBXMonitor:
 
             state = entry.get("state", "")
             if state in ("Ring", "Ringing"):
-                # Ignora i canali trunk: le notifiche si basano sui
-                # canali extension che hanno il numero esterno in connectednum
+                # Canale trunk di una chiamata in entrata: registra il
+                # linkedid come chiamata esterna e salta (le notifiche
+                # si basano sui canali extension, non trunk)
                 if entry.get("inbound_trunk_name"):
+                    self._incoming_linkedids.add(linkedid)
+                    return
+
+                # Ignora chiamate non in ingresso (interne o in uscita):
+                # solo i linkedid associati a un trunk inbound vengono
+                # notificati
+                if linkedid not in self._incoming_linkedids:
                     return
 
                 callernum = entry.get("callernum", "")
@@ -489,6 +509,7 @@ class PBXMonitor:
                 if not channels:
                     # Tutti i canali rimossi → chiamata terminata
                     self._call_channels.pop(linked, None)
+                    self._incoming_linkedids.discard(linked)
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
@@ -513,6 +534,10 @@ class PBXMonitor:
             if channel and linkedid:
                 self._channel_map[channel] = linkedid
                 self._call_channels.setdefault(linkedid, set()).add(channel)
+
+            # Notifica solo chiamate in ingresso esterne
+            if linkedid not in self._incoming_linkedids:
+                return
 
             callerid1 = entry.get("callerid1", "")
             callerid2 = entry.get("callerid2", "")
@@ -554,6 +579,7 @@ class PBXMonitor:
                 channels.discard(channel)
                 if not channels:
                     self._call_channels.pop(linked, None)
+                    self._incoming_linkedids.discard(linked)
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
