@@ -21,12 +21,14 @@ import logging
 import os
 import queue
 import re
+import sqlite3
+
 import phonenumbers
 
 from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
 from ldap3.core.exceptions import LDAPException
 
-from audit_log import get_log, log_action
+from audit_log import DB_PATH, get_log, log_action
 from config import Config
 from ldap_client import LDAPClient
 from pbx_monitor import PBXMonitor
@@ -69,6 +71,7 @@ pbx = PBXMonitor(
     port=app.config["UCM_PORT"],
     user=app.config["PBX_API_USER"],
     password=app.config["PBX_API_PASSWORD"],
+    db_path=DB_PATH,
 )
 # Avvia il monitor solo una volta. Con debug=True, Werkzeug avvia due
 # processi (Main e Child). Solo il child ha WERKZEUG_RUN_MAIN="true".
@@ -81,6 +84,24 @@ _is_reloader_main = (
 )
 if not _is_reloader_main:
     pbx.start()
+
+# Assicura che la tabella call_log esista (per le query dal thread Flask)
+_init_conn = sqlite3.connect(DB_PATH)
+_init_conn.execute(
+    """CREATE TABLE IF NOT EXISTS call_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT NOT NULL,
+        direction TEXT NOT NULL,
+        external_number TEXT NOT NULL,
+        internal_ext TEXT DEFAULT '',
+        internal_name TEXT DEFAULT '',
+        answered INTEGER DEFAULT 0,
+        duration INTEGER DEFAULT 0,
+        linkedid TEXT DEFAULT ''
+    )"""
+)
+_init_conn.commit()
+_init_conn.close()
 
 # --- normalizza numero di telefono ---
 
@@ -187,7 +208,8 @@ def add_contact():
                 telephone=telephone, telephone2=telephone2,
             )
 
-    return render_template("add.html", title="", given_name="", sn="", telephone="", telephone2="")
+    telephone = request.args.get("telephone", "")
+    return render_template("add.html", title="", given_name="", sn="", telephone=telephone, telephone2="")
 
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
@@ -307,6 +329,73 @@ def audit_log():
     """Visualizza il registro delle modifiche (ultime 200 operazioni)."""
     entries = get_log()
     return render_template("log.html", entries=entries)
+
+
+@app.route("/calls")
+def call_log_page():
+    """Registro chiamate con filtri e paginazione."""
+    page = request.args.get("page", 1, type=int)
+    per_page = 50
+    direction = request.args.get("direction", "").strip()
+    number = request.args.get("number", "").strip()
+    ext = request.args.get("ext", "").strip()
+    date_from = request.args.get("date_from", "").strip()
+    date_to = request.args.get("date_to", "").strip()
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        conditions = []
+        params = []
+        if direction in ("inbound", "outbound"):
+            conditions.append("direction = ?")
+            params.append(direction)
+        if number:
+            conditions.append("external_number LIKE ?")
+            params.append(f"%{number}%")
+        if ext:
+            conditions.append("(internal_ext LIKE ? OR internal_name LIKE ?)")
+            params.extend([f"%{ext}%", f"%{ext}%"])
+        if date_from:
+            conditions.append("timestamp >= ?")
+            params.append(f"{date_from} 00:00:00")
+        if date_to:
+            conditions.append("timestamp <= ?")
+            params.append(f"{date_to} 23:59:59")
+
+        where = " AND ".join(conditions) if conditions else "1=1"
+
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM call_log WHERE {where}", params
+        ).fetchone()[0]
+
+        offset = (page - 1) * per_page
+        rows = conn.execute(
+            f"SELECT * FROM call_log WHERE {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            params + [per_page, offset],
+        ).fetchall()
+
+        entries = [dict(row) for row in rows]
+        total_pages = max(1, (total + per_page - 1) // per_page)
+    except sqlite3.OperationalError:
+        entries = []
+        total = 0
+        total_pages = 1
+    finally:
+        conn.close()
+
+    return render_template(
+        "calls.html",
+        entries=entries,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        direction=direction,
+        number=number,
+        ext=ext,
+        date_from=date_from,
+        date_to=date_to,
+    )
 
 
 # --- API click-to-dial ---

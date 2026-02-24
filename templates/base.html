@@ -22,13 +22,14 @@
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <div class="container">
         <header>
             <h1><a href="{{ url_for('index') }}">Rubrica LDAP</a></h1>
             <!-- Navigazione principale e selettore interno -->
             <nav>
                 <a href="{{ url_for('index') }}">Rubrica</a>
+                <a href="{{ url_for('call_log_page') }}">Registro chiamate</a>
                 <a href="{{ url_for('audit_log') }}">Registro modifiche</a>
                 {# Selettore dell'interno VoIP, salvato in localStorage #}
                 <select id="extensionSelect" title="Interno VoIP">

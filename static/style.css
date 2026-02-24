@@ -662,3 +662,97 @@ h2 {
     0%, 100% { opacity: 1; }
     50%      { opacity: 0.8; }
 }
+
+/* ==========================================================================
+   16. Registro chiamate (pagina /calls)
+   ========================================================================== */
+
+/* Container piu' largo per la tabella chiamate con piu' colonne */
+.page-calls .container {
+    max-width: 1100px;
+}
+
+/* Filtri */
+.call-log-filters {
+    background: white;
+    padding: 16px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+.filter-row {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filter-row label {
+    display: flex;
+    flex-direction: column;
+    font-size: 12px;
+    font-weight: 600;
+    color: #777;
+    gap: 4px;
+}
+
+.filter-row input,
+.filter-row select {
+    padding: 6px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.filter-row input:focus,
+.filter-row select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.filter-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Badge direzione chiamata */
+.badge-inbound {
+    background: #d6eaf8;
+    color: #1a5276;
+}
+
+.badge-outbound {
+    background: #d5f5e3;
+    color: #196f3d;
+}
+
+/* Riga chiamata non risposta */
+.call-unanswered {
+    background: #fdf2e9 !important;
+}
+
+.call-unanswered:hover {
+    background: #fae5d3 !important;
+}
+
+/* Testo secondario */
+.text-muted {
+    color: #999;
+}
+
+/* Paginazione */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.page-info {
+    font-size: 14px;
+    color: #777;
+}

@@ -28,10 +28,12 @@ import asyncio
 import hashlib
 import json
 import logging
+import sqlite3
 import ssl
 import threading
 import uuid
 from collections import OrderedDict
+from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
 import websockets
@@ -92,7 +94,7 @@ class PBXMonitor:
     linkedid a tutti i canali di una stessa chiamata, inclusi ring group).
     """
 
-    def __init__(self, host, port, user, password):
+    def __init__(self, host, port, user, password, db_path=None):
         """Inizializza il monitor.
 
         Args:
@@ -100,6 +102,7 @@ class PBXMonitor:
             port: porta WebSocket (di solito 8089).
             user: nome utente di accesso al PBX (es. "adminpbx").
             password: password dell'utente PBX.
+            db_path: percorso del database SQLite per il registro chiamate.
         """
         self.ws_url = f"wss://{host}:{port}/websockify"
         self.user = user
@@ -125,6 +128,13 @@ class PBXMonitor:
         # Popolato quando si riceve un evento trunk con inbound_trunk_name.
         # Accesso solo dal thread asyncio, non serve lock.
         self._incoming_linkedids = set()
+
+        # Database per il registro chiamate (connessione creata nel thread)
+        self._db_path = db_path
+        self._db = None
+        # Metadata temporanea per le chiamate in corso (linkedid → dict)
+        # Usato per calcolare la durata alla fine della chiamata.
+        self._call_log_meta = {}
 
         # Stato interno asyncio
         self._ws = None
@@ -190,6 +200,7 @@ class PBXMonitor:
 
     def _run_loop(self):
         """Crea un event loop asyncio e avvia il ciclo di connessione."""
+        self._init_call_log_db()
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         try:
@@ -197,6 +208,8 @@ class PBXMonitor:
         except Exception:
             logger.exception("Errore fatale nel loop PBX monitor")
         finally:
+            if self._db:
+                self._db.close()
             self._loop.close()
 
     async def _connection_loop(self):
@@ -222,6 +235,7 @@ class PBXMonitor:
                 self._channel_map.clear()
                 self._call_channels.clear()
                 self._incoming_linkedids.clear()
+                self._call_log_meta.clear()
 
             if self._running:
                 logger.info(
@@ -600,6 +614,9 @@ class PBXMonitor:
                     "connectednum": callernum,
                     "callername": connectedname,
                 })
+
+                # Registro chiamate: inserisci record inbound
+                self._log_inbound_ring(linkedid, connectednum)
             else:
                 pbx_raw_logger.info(
                     "    -> Unbridge add/update con state=%s (non Ring/Ringing), ignorato",
@@ -624,6 +641,7 @@ class PBXMonitor:
                     # Tutti i canali rimossi → chiamata terminata
                     self._call_channels.pop(linked, None)
                     self._incoming_linkedids.discard(linked)
+                    self._finalize_call_log(linked)
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
@@ -686,6 +704,10 @@ class PBXMonitor:
             # FIX 1: Risolvi linkedid da channel1/channel2 via _channel_map
             linkedid = self._resolve_bridge_linkedid(entry)
 
+            # Fallback per chiamate outbound (nessun unbridge precedente)
+            if not linkedid and entry.get("outbound_trunk_name"):
+                linkedid = uniqueid or channel1 or channel2 or channel
+
             if not linkedid:
                 pbx_raw_logger.info(
                     "    -> Bridge IGNORATO: linkedid non risolvibile "
@@ -702,6 +724,33 @@ class PBXMonitor:
                 "    -> Bridge canali tracciati: %s -> linkedid=%s",
                 bridge_channels, linkedid,
             )
+
+            # --- Registro chiamate: rilevamento outbound ---
+            outbound_trunk = entry.get("outbound_trunk_name", "")
+            inbound_trunk = entry.get("inbound_trunk_name", "")
+
+            if outbound_trunk and not inbound_trunk:
+                # Chiamata in uscita con risposta: registra nel database
+                ext_num, int_ext, int_name = self._extract_bridge_parties(entry)
+                bridge_time_val = entry.get("bridge_time", "")
+                if ext_num:
+                    self._log_outbound_call(
+                        linkedid,
+                        bridge_time_val or datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        ext_num, int_ext or "", int_name or "",
+                    )
+                pbx_raw_logger.info(
+                    "    -> OUTBOUND registrata: linkedid=%s ext=%s",
+                    linkedid, ext_num,
+                )
+
+            # --- Registro chiamate: aggiornamento inbound risposta ---
+            if linkedid in self._incoming_linkedids and linkedid in self._call_log_meta:
+                ext_num, int_ext, int_name = self._extract_bridge_parties(entry)
+                bridge_time_val = entry.get("bridge_time", "")
+                self._log_call_answered(
+                    linkedid, int_ext or "", int_name or "", bridge_time_val,
+                )
 
             # Notifica solo chiamate in ingresso esterne
             if linkedid not in self._incoming_linkedids:
@@ -783,6 +832,7 @@ class PBXMonitor:
                 if not channels:
                     self._call_channels.pop(linked, None)
                     self._incoming_linkedids.discard(linked)
+                    self._finalize_call_log(linked)
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
@@ -797,6 +847,142 @@ class PBXMonitor:
                             "event": "call_hangup",
                             "uniqueid": linked,
                         })
+
+    # ------------------------------------------------------------------
+    # Registro chiamate su database SQLite
+    # ------------------------------------------------------------------
+
+    def _init_call_log_db(self):
+        """Crea la connessione SQLite e la tabella call_log nel thread del monitor."""
+        if not self._db_path:
+            return
+        try:
+            self._db = sqlite3.connect(self._db_path)
+            self._db.execute(
+                """CREATE TABLE IF NOT EXISTS call_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT NOT NULL,
+                    direction TEXT NOT NULL,
+                    external_number TEXT NOT NULL,
+                    internal_ext TEXT DEFAULT '',
+                    internal_name TEXT DEFAULT '',
+                    answered INTEGER DEFAULT 0,
+                    duration INTEGER DEFAULT 0,
+                    linkedid TEXT DEFAULT ''
+                )"""
+            )
+            self._db.commit()
+            logger.info("Tabella call_log inizializzata in %s", self._db_path)
+        except Exception:
+            logger.exception("Errore inizializzazione database call_log")
+            self._db = None
+
+    def _extract_bridge_parties(self, entry):
+        """Identifica le parti interna/esterna di un evento bridge.
+
+        Il canale con "trunk" nel nome identifica la parte esterna.
+
+        Returns:
+            Tupla (external_number, internal_ext, internal_name)
+            oppure (None, None, None) se non determinabile.
+        """
+        ch1 = entry.get("channel1", "")
+        ch2 = entry.get("channel2", "")
+        id1 = entry.get("callerid1", "")
+        id2 = entry.get("callerid2", "")
+        name1 = entry.get("name1", "")
+        name2 = entry.get("name2", "")
+
+        if "trunk" in ch1.lower():
+            return id1, id2, name2
+        elif "trunk" in ch2.lower():
+            return id2, id1, name1
+        return None, None, None
+
+    def _log_inbound_ring(self, linkedid, external_number):
+        """Inserisce un record inbound quando inizia lo squillo."""
+        if not self._db:
+            return
+        try:
+            ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self._db.execute(
+                "INSERT INTO call_log "
+                "(timestamp, direction, external_number, linkedid) "
+                "VALUES (?, 'inbound', ?, ?)",
+                (ts, external_number, linkedid),
+            )
+            self._db.commit()
+            self._call_log_meta[linkedid] = {"bridge_time": None}
+            logger.info(
+                "Call log: inbound ring da %s (linkedid=%s)", external_number, linkedid
+            )
+        except Exception:
+            logger.exception("Errore registrazione inbound ring")
+
+    def _log_call_answered(self, linkedid, internal_ext, internal_name, bridge_time):
+        """Aggiorna un record inbound quando la chiamata riceve risposta."""
+        if not self._db:
+            return
+        try:
+            self._db.execute(
+                "UPDATE call_log SET answered = 1, internal_ext = ?, "
+                "internal_name = ? WHERE linkedid = ?",
+                (internal_ext, internal_name, linkedid),
+            )
+            self._db.commit()
+            meta = self._call_log_meta.get(linkedid)
+            if meta is not None:
+                meta["bridge_time"] = bridge_time
+            logger.info(
+                "Call log: inbound risposta int=%s (%s) linkedid=%s",
+                internal_ext, internal_name, linkedid,
+            )
+        except Exception:
+            logger.exception("Errore aggiornamento inbound risposta")
+
+    def _log_outbound_call(self, linkedid, timestamp, external_number,
+                           internal_ext, internal_name):
+        """Inserisce un record outbound (solo chiamate con risposta)."""
+        if not self._db:
+            return
+        try:
+            self._db.execute(
+                "INSERT INTO call_log "
+                "(timestamp, direction, external_number, internal_ext, "
+                "internal_name, answered, linkedid) "
+                "VALUES (?, 'outbound', ?, ?, ?, 1, ?)",
+                (timestamp, external_number, internal_ext, internal_name, linkedid),
+            )
+            self._db.commit()
+            self._call_log_meta[linkedid] = {"bridge_time": timestamp}
+            logger.info(
+                "Call log: outbound %s -> %s (linkedid=%s)",
+                internal_ext, external_number, linkedid,
+            )
+        except Exception:
+            logger.exception("Errore registrazione outbound")
+
+    def _finalize_call_log(self, linkedid):
+        """Calcola e salva la durata alla fine della chiamata."""
+        meta = self._call_log_meta.pop(linkedid, None)
+        if not meta or not self._db:
+            return
+        bridge_time_str = meta.get("bridge_time")
+        if not bridge_time_str:
+            return  # non risposta, duration resta 0
+        try:
+            bt = datetime.strptime(bridge_time_str, "%Y-%m-%d %H:%M:%S")
+            duration = max(0, int((datetime.now() - bt).total_seconds()))
+            self._db.execute(
+                "UPDATE call_log SET duration = ? WHERE linkedid = ?",
+                (duration, linkedid),
+            )
+            self._db.commit()
+            logger.info(
+                "Call log: durata %ds per linkedid=%s", duration, linkedid
+            )
+        except Exception:
+            logger.exception("Errore aggiornamento durata chiamata")
 
     # ------------------------------------------------------------------
     # Broadcasting eventi ai subscriber (code thread-safe)

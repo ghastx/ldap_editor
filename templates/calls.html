@@ -1,0 +1,141 @@
+{#
+  calls.html - Registro chiamate (call log)
+
+  Mostra una tabella con lo storico delle chiamate in entrata e in uscita,
+  con filtri per data, direzione, numero e interno, e paginazione.
+
+  Variabili dal controller:
+    entries: lista di dizionari dalla tabella call_log
+    page: pagina corrente
+    total_pages: numero totale di pagine
+    total: numero totale di chiamate (con filtri applicati)
+    direction, number, ext, date_from, date_to: filtri attivi
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+#}
+{% extends "base.html" %}
+
+{% block body_class %}page-calls{% endblock %}
+
+{% block content %}
+<div class="toolbar">
+    <h2>Registro chiamate</h2>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary">Torna alla rubrica</a>
+</div>
+
+{# Filtri #}
+<form method="GET" action="{{ url_for('call_log_page') }}" class="call-log-filters">
+    <div class="filter-row">
+        <label>
+            Da
+            <input type="date" name="date_from" value="{{ date_from }}">
+        </label>
+        <label>
+            A
+            <input type="date" name="date_to" value="{{ date_to }}">
+        </label>
+        <label>
+            Direzione
+            <select name="direction">
+                <option value="">Tutte</option>
+                <option value="inbound" {{ 'selected' if direction == 'inbound' }}>Entrata</option>
+                <option value="outbound" {{ 'selected' if direction == 'outbound' }}>Uscita</option>
+            </select>
+        </label>
+        <label>
+            Numero
+            <input type="text" name="number" value="{{ number }}" placeholder="Numero esterno">
+        </label>
+        <label>
+            Interno
+            <input type="text" name="ext" value="{{ ext }}" placeholder="Interno o nome">
+        </label>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary btn-small">Filtra</button>
+            <a href="{{ url_for('call_log_page') }}" class="btn btn-secondary btn-small">Reset</a>
+        </div>
+    </div>
+</form>
+
+{% if entries %}
+<table>
+    <thead>
+        <tr>
+            <th>Data/ora</th>
+            <th>Direzione</th>
+            <th>Numero esterno</th>
+            <th>Interno</th>
+            <th>Risposta</th>
+            <th>Durata</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in entries %}
+        <tr class="{{ 'call-unanswered' if not entry.answered }}">
+            <td class="nowrap">{{ entry.timestamp }}</td>
+            <td>
+                {% if entry.direction == 'inbound' %}
+                    <span class="badge badge-inbound" title="In entrata">&#8595; entrata</span>
+                {% else %}
+                    <span class="badge badge-outbound" title="In uscita">&#8593; uscita</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
+                    {{ entry.external_number }}
+                </a>
+            </td>
+            <td>
+                {% if entry.internal_ext %}
+                    {{ entry.internal_ext }}
+                    {% if entry.internal_name %}
+                        <br><small class="text-muted">{{ entry.internal_name }}</small>
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if entry.answered %}
+                    <span class="badge badge-success" title="Risposta">&#10003;</span>
+                {% else %}
+                    <span class="badge badge-danger" title="Non risposta">&#10007;</span>
+                {% endif %}
+            </td>
+            <td class="nowrap">
+                {% if entry.answered and entry.duration %}
+                    {{ entry.duration }}s
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
+                   class="btn btn-primary btn-small" title="Aggiungi alla rubrica">+</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{# Paginazione #}
+{% if total_pages > 1 %}
+<div class="pagination">
+    {% if page > 1 %}
+        <a href="{{ url_for('call_log_page', page=page - 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
+           class="btn btn-secondary btn-small">&larr; Precedente</a>
+    {% endif %}
+    <span class="page-info">Pagina {{ page }} di {{ total_pages }}</span>
+    {% if page < total_pages %}
+        <a href="{{ url_for('call_log_page', page=page + 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
+           class="btn btn-secondary btn-small">Successiva &rarr;</a>
+    {% endif %}
+</div>
+{% endif %}
+
+<p class="count">{{ total }} chiamat{{ 'a' if total == 1 else 'e' }} totali</p>
+{% else %}
+<p class="empty">Nessuna chiamata registrata.</p>
+{% endif %}
+{% endblock %}
