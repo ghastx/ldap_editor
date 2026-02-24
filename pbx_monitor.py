@@ -531,7 +531,8 @@ class PBXMonitor:
                 # linkedid come chiamata esterna e salta (le notifiche
                 # si basano sui canali extension, non trunk)
                 if entry.get("inbound_trunk_name"):
-                    self._incoming_linkedids.add(linkedid)
+                    if linkedid:  # ignora linkedid vuoti
+                        self._incoming_linkedids.add(linkedid)
                     pbx_raw_logger.info(
                         "    -> Trunk inbound rilevato, linkedid=%s registrato come incoming",
                         linkedid,
@@ -540,8 +541,8 @@ class PBXMonitor:
 
                 # Ignora chiamate non in ingresso (interne o in uscita):
                 # solo i linkedid associati a un trunk inbound vengono
-                # notificati
-                if linkedid not in self._incoming_linkedids:
+                # notificati. Ignora anche linkedid vuoti (eventi post-hangup).
+                if not linkedid or linkedid not in self._incoming_linkedids:
                     pbx_raw_logger.info(
                         "    -> IGNORATO: linkedid=%s non in incoming_linkedids",
                         linkedid,
