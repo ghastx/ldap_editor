@@ -32,10 +32,30 @@ import ssl
 import threading
 import uuid
 from collections import OrderedDict
+from logging.handlers import RotatingFileHandler
 
 import websockets
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Logger dedicato per i messaggi raw del PBX.
+# Scrive su file pbx_raw.log TUTTI i messaggi in arrivo e in uscita,
+# senza troncamenti, per analisi e debug del protocollo.
+# Il file ruota a 10 MB con 3 backup (totale max ~40 MB).
+# ---------------------------------------------------------------------------
+pbx_raw_logger = logging.getLogger("pbx_raw")
+pbx_raw_logger.setLevel(logging.DEBUG)
+pbx_raw_logger.propagate = False  # non inquina il log principale
+_raw_handler = RotatingFileHandler(
+    "pbx_raw.log", maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8"
+)
+_raw_handler.setFormatter(
+    logging.Formatter(
+        "%(asctime)s.%(msecs)03d  %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+    )
+)
+pbx_raw_logger.addHandler(_raw_handler)
 
 # Intervalli in secondi
 HEARTBEAT_INTERVAL = 30
@@ -54,6 +74,11 @@ def _make_ssl_context():
 def _transaction_id():
     """Genera un ID di transazione univoco."""
     return uuid.uuid4().hex[:16]
+
+
+def _pretty_json(obj):
+    """Formatta un oggetto come JSON indentato per il log raw."""
+    return json.dumps(obj, indent=2, ensure_ascii=False)
 
 
 class PBXMonitor:
@@ -207,6 +232,9 @@ class PBXMonitor:
     async def _connect_and_run(self):
         """Connessione, autenticazione, sottoscrizione e ricezione eventi."""
         logger.info("Connessione a %s ...", self.ws_url)
+        pbx_raw_logger.info("=" * 60)
+        pbx_raw_logger.info("NUOVA SESSIONE - Connessione a %s", self.ws_url)
+        pbx_raw_logger.info("=" * 60)
 
         async with websockets.connect(
             self.ws_url,
@@ -217,6 +245,7 @@ class PBXMonitor:
         ) as ws:
             self._ws = ws
             logger.info("WebSocket connesso a %s", self.ws_url)
+            pbx_raw_logger.info("WebSocket connesso")
 
             # Autenticazione challenge/response
             await self._authenticate(ws)
@@ -235,6 +264,7 @@ class PBXMonitor:
                 except asyncio.CancelledError:
                     pass
                 self._ws = None
+                pbx_raw_logger.info("Sessione chiusa")
 
     # ------------------------------------------------------------------
     # Protocollo WebSocket Grandstream
@@ -255,6 +285,7 @@ class PBXMonitor:
         payload = {"type": "request", "message": message_body}
         raw = json.dumps(payload)
         logger.debug("TX: %s", raw)
+        pbx_raw_logger.debug(">>> TX >>>\n%s", _pretty_json(payload))
         await ws.send(raw)
         return tid
 
@@ -270,7 +301,13 @@ class PBXMonitor:
         """
         raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
         logger.debug("RX: %s", raw)
-        return json.loads(raw)
+        try:
+            parsed = json.loads(raw)
+            pbx_raw_logger.debug("<<< RX <<<\n%s", _pretty_json(parsed))
+        except json.JSONDecodeError:
+            pbx_raw_logger.debug("<<< RX (non-JSON) <<<\n%s", raw)
+            parsed = json.loads(raw)  # rilancia l'eccezione
+        return parsed
 
     async def _authenticate(self, ws):
         """Esegue il flusso challenge/login.
@@ -353,9 +390,17 @@ class PBXMonitor:
                 data = json.loads(raw)
             except json.JSONDecodeError:
                 logger.warning("Messaggio non JSON dal PBX: %s", raw[:200])
+                pbx_raw_logger.warning(
+                    "<<< RX (non-JSON) <<<\n%s", raw
+                )
                 continue
 
             logger.debug("RX: %s", json.dumps(data, ensure_ascii=False)[:500])
+
+            # ---- LOG RAW COMPLETO (senza troncamenti) ----
+            pbx_raw_logger.info(
+                "<<< RX <<<\n%s", _pretty_json(data)
+            )
 
             raw_msg = data.get("message", {})
             # Il PBX puo' mandare message come dict o come lista di dict
@@ -367,12 +412,34 @@ class PBXMonitor:
                 action = msg.get("action", "")
                 if action == "notify":
                     eventname = msg.get("eventname", "")
+
+                    # ---- LOG DETTAGLIATO PER EVENTO ----
+                    eventbody = msg.get("eventbody", [])
+                    pbx_raw_logger.info(
+                        "--- EVENTO: %s  (%d entries) ---",
+                        eventname, len(eventbody) if isinstance(eventbody, list) else 1,
+                    )
+                    for i, entry in enumerate(
+                        eventbody if isinstance(eventbody, list) else [eventbody]
+                    ):
+                        pbx_raw_logger.info(
+                            "  entry[%d]:\n%s", i, _pretty_json(entry)
+                        )
+
                     if eventname == "ExtensionStatus":
                         self._handle_extension_status(msg)
                     elif eventname == "ActiveCallStatus":
                         self._handle_active_call_status(msg)
                     else:
                         logger.debug("Evento notify sconosciuto: %s", eventname)
+                        pbx_raw_logger.info(
+                            "Evento notify NON gestito: %s", eventname
+                        )
+                elif action:
+                    # Log anche di azioni non-notify (heartbeat response, ecc.)
+                    pbx_raw_logger.debug(
+                        "--- AZIONE: %s ---\n%s", action, _pretty_json(msg)
+                    )
 
     def _handle_extension_status(self, msg):
         """Gestisce un evento ExtensionStatus.
@@ -415,6 +482,14 @@ class PBXMonitor:
             action = entry.get("action", "")
             uniqueid = entry.get("uniqueid", "")
 
+            # ---- LOG DECISIONALE ----
+            pbx_raw_logger.info(
+                "  PROCESS: chantype=%s action=%s uniqueid=%s linkedid=%s channel=%s",
+                chantype, action, uniqueid,
+                entry.get("linkedid", ""),
+                entry.get("channel", ""),
+            )
+
             if chantype == "unbridge":
                 self._handle_unbridge(action, entry, uniqueid)
             elif chantype == "bridge":
@@ -455,12 +530,20 @@ class PBXMonitor:
                 # si basano sui canali extension, non trunk)
                 if entry.get("inbound_trunk_name"):
                     self._incoming_linkedids.add(linkedid)
+                    pbx_raw_logger.info(
+                        "    -> Trunk inbound rilevato, linkedid=%s registrato come incoming",
+                        linkedid,
+                    )
                     return
 
                 # Ignora chiamate non in ingresso (interne o in uscita):
                 # solo i linkedid associati a un trunk inbound vengono
                 # notificati
                 if linkedid not in self._incoming_linkedids:
+                    pbx_raw_logger.info(
+                        "    -> IGNORATO: linkedid=%s non in incoming_linkedids",
+                        linkedid,
+                    )
                     return
 
                 callernum = entry.get("callernum", "")
@@ -475,8 +558,16 @@ class PBXMonitor:
                             exts = existing.get("extensions", [])
                             if callernum and callernum not in exts:
                                 exts.append(callernum)
+                                pbx_raw_logger.info(
+                                    "    -> Ring group: aggiunto interno %s a linkedid=%s (interni: %s)",
+                                    callernum, linkedid, exts,
+                                )
                         # Chiamata gia' tracciata (ringing o connected):
                         # non generare una nuova notifica ring
+                        pbx_raw_logger.info(
+                            "    -> Chiamata gia' tracciata (state=%s), skip notifica",
+                            existing.get("state"),
+                        )
                         return
 
                     # Nuova chiamata in arrivo: il chiamante esterno e'
@@ -491,6 +582,10 @@ class PBXMonitor:
                     }
                     self.active_calls[linkedid] = call_info
 
+                pbx_raw_logger.info(
+                    "    -> NUOVA CHIAMATA RINGING: da=%s verso=%s linkedid=%s",
+                    connectednum, callernum, linkedid,
+                )
                 logger.info(
                     "Squillo: %s -> interni %s",
                     connectednum, callernum,
@@ -502,13 +597,26 @@ class PBXMonitor:
                     "connectednum": callernum,
                     "callername": connectedname,
                 })
+            else:
+                pbx_raw_logger.info(
+                    "    -> Unbridge add/update con state=%s (non Ring/Ringing), ignorato",
+                    state,
+                )
 
         elif action == "delete":
             # I delete hanno solo "channel", non "uniqueid"
             linked = self._channel_map.pop(channel, None) if channel else None
+            pbx_raw_logger.info(
+                "    -> Unbridge DELETE: channel=%s -> linkedid=%s",
+                channel, linked,
+            )
             if linked:
                 channels = self._call_channels.get(linked, set())
                 channels.discard(channel)
+                pbx_raw_logger.info(
+                    "    -> Canali rimanenti per linkedid=%s: %s",
+                    linked, channels,
+                )
                 if not channels:
                     # Tutti i canali rimossi → chiamata terminata
                     self._call_channels.pop(linked, None)
@@ -516,6 +624,10 @@ class PBXMonitor:
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
+                        pbx_raw_logger.info(
+                            "    -> CHIAMATA TERMINATA (unbridge): linkedid=%s",
+                            linked,
+                        )
                         logger.info("Chiamata terminata: %s", linked)
                         self._broadcast_event({
                             "event": "call_hangup",
@@ -540,6 +652,10 @@ class PBXMonitor:
 
             # Notifica solo chiamate in ingresso esterne
             if linkedid not in self._incoming_linkedids:
+                pbx_raw_logger.info(
+                    "    -> Bridge IGNORATO: linkedid=%s non in incoming_linkedids",
+                    linkedid,
+                )
                 return
 
             # Processa solo chiamate gia' viste in fase di squillo.
@@ -548,6 +664,10 @@ class PBXMonitor:
             # ma non generano un evento Ring sugli interni.
             with self._lock:
                 if linkedid not in self.active_calls:
+                    pbx_raw_logger.info(
+                        "    -> Bridge IGNORATO: linkedid=%s non in active_calls",
+                        linkedid,
+                    )
                     return
 
             callerid1 = entry.get("callerid1", "")
@@ -568,6 +688,10 @@ class PBXMonitor:
             with self._lock:
                 self.active_calls[linkedid] = call_info
 
+            pbx_raw_logger.info(
+                "    -> CHIAMATA CONNESSA: %s (%s) <-> %s (%s) linkedid=%s",
+                callerid1, name1, callerid2, name2, linkedid,
+            )
             logger.info(
                 "Chiamata connessa: %s (%s) <-> %s (%s)",
                 callerid1, name1, callerid2, name2,
@@ -585,15 +709,27 @@ class PBXMonitor:
         elif action == "delete":
             # Come per unbridge, i delete hanno solo "channel"
             linked = self._channel_map.pop(channel, None) if channel else None
+            pbx_raw_logger.info(
+                "    -> Bridge DELETE: channel=%s -> linkedid=%s",
+                channel, linked,
+            )
             if linked:
                 channels = self._call_channels.get(linked, set())
                 channels.discard(channel)
+                pbx_raw_logger.info(
+                    "    -> Canali rimanenti per linkedid=%s: %s",
+                    linked, channels,
+                )
                 if not channels:
                     self._call_channels.pop(linked, None)
                     self._incoming_linkedids.discard(linked)
                     with self._lock:
                         removed = self.active_calls.pop(linked, None)
                     if removed:
+                        pbx_raw_logger.info(
+                            "    -> CHIAMATA TERMINATA (bridge delete): linkedid=%s",
+                            linked,
+                        )
                         logger.info(
                             "Chiamata terminata (bridge delete): %s", linked
                         )
@@ -611,6 +747,7 @@ class PBXMonitor:
 
         Le code piene vengono svuotate per evitare blocchi.
         """
+        pbx_raw_logger.info("BROADCAST: %s", _pretty_json(event))
         with self._queues_lock:
             for q in self._event_queues:
                 try:
