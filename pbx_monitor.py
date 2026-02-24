@@ -484,10 +484,12 @@ class PBXMonitor:
 
             # ---- LOG DECISIONALE ----
             pbx_raw_logger.info(
-                "  PROCESS: chantype=%s action=%s uniqueid=%s linkedid=%s channel=%s",
+                "  PROCESS: chantype=%s action=%s uniqueid=%s linkedid=%s channel=%s ch1=%s ch2=%s",
                 chantype, action, uniqueid,
                 entry.get("linkedid", ""),
                 entry.get("channel", ""),
+                entry.get("channel1", ""),
+                entry.get("channel2", ""),
             )
 
             if chantype == "unbridge":
@@ -634,21 +636,71 @@ class PBXMonitor:
                             "uniqueid": linked,
                         })
 
+    def _resolve_bridge_linkedid(self, entry):
+        """Risolve il linkedid per un evento bridge.
+
+        Gli eventi bridge del PBX hanno spesso linkedid vuoto e usano
+        channel1/channel2 invece di channel. Risaliamo al linkedid
+        cercando i canali in _channel_map.
+
+        Returns:
+            Il linkedid risolto, oppure stringa vuota se non trovato.
+        """
+        # Prima prova il linkedid diretto (se il PBX lo fornisce)
+        linkedid = entry.get("linkedid", "")
+        if linkedid:
+            return linkedid
+
+        # Altrimenti cerca tramite channel1/channel2 in _channel_map
+        for key in ("channel1", "channel2", "channel"):
+            ch = entry.get(key, "")
+            if ch and ch in self._channel_map:
+                resolved = self._channel_map[ch]
+                pbx_raw_logger.info(
+                    "    -> linkedid risolto da %s=%s -> %s",
+                    key, ch, resolved,
+                )
+                return resolved
+
+        return ""
+
     def _handle_bridge(self, action, entry, uniqueid):
         """Gestisce eventi bridge (chiamata connessa).
 
         Quando un interno risponde, il PBX crea un bridge con entrambe
         le parti. Usiamo linkedid per sostituire l'entry "ringing"
         con una "connected", cosi' il badge passa da squillo a connesso.
+
+        Gli eventi bridge usano channel1/channel2 (non channel) e spesso
+        hanno linkedid vuoto. Il linkedid viene risolto tramite
+        _channel_map dai canali gia' tracciati in fase unbridge.
         """
+        # Estrai tutti i canali coinvolti nel bridge
         channel = entry.get("channel", "")
-        linkedid = entry.get("linkedid", uniqueid or channel)
+        channel1 = entry.get("channel1", "")
+        channel2 = entry.get("channel2", "")
+        bridge_channels = [ch for ch in (channel, channel1, channel2) if ch]
 
         if action in ("add", "update"):
-            # Traccia il canale bridge
-            if channel and linkedid:
-                self._channel_map[channel] = linkedid
-                self._call_channels.setdefault(linkedid, set()).add(channel)
+            # FIX 1: Risolvi linkedid da channel1/channel2 via _channel_map
+            linkedid = self._resolve_bridge_linkedid(entry)
+
+            if not linkedid:
+                pbx_raw_logger.info(
+                    "    -> Bridge IGNORATO: linkedid non risolvibile "
+                    "(channel=%s channel1=%s channel2=%s)",
+                    channel, channel1, channel2,
+                )
+                return
+
+            # FIX 2: Traccia i canali bridge in _call_channels
+            for ch in bridge_channels:
+                self._channel_map[ch] = linkedid
+                self._call_channels.setdefault(linkedid, set()).add(ch)
+            pbx_raw_logger.info(
+                "    -> Bridge canali tracciati: %s -> linkedid=%s",
+                bridge_channels, linkedid,
+            )
 
             # Notifica solo chiamate in ingresso esterne
             if linkedid not in self._incoming_linkedids:
@@ -658,10 +710,7 @@ class PBXMonitor:
                 )
                 return
 
-            # Processa solo chiamate gia' viste in fase di squillo.
-            # Esclude le chiamate in uscita che transitano dal trunk
-            # (il PBX popola inbound_trunk_name anche per le uscenti)
-            # ma non generano un evento Ring sugli interni.
+            # Processa solo chiamate gia' viste in fase di squillo
             with self._lock:
                 if linkedid not in self.active_calls:
                     pbx_raw_logger.info(
@@ -707,15 +756,25 @@ class PBXMonitor:
             })
 
         elif action == "delete":
-            # Come per unbridge, i delete hanno solo "channel"
-            linked = self._channel_map.pop(channel, None) if channel else None
+            # I delete bridge possono avere channel e/o channel2
+            # Risolvi il linkedid da qualsiasi canale presente
+            linked = None
+            for ch in bridge_channels:
+                if ch in self._channel_map:
+                    linked = self._channel_map.pop(ch)
+                    break
+            # Rimuovi anche gli altri canali dal map
+            for ch in bridge_channels:
+                self._channel_map.pop(ch, None)
+
             pbx_raw_logger.info(
-                "    -> Bridge DELETE: channel=%s -> linkedid=%s",
-                channel, linked,
+                "    -> Bridge DELETE: channels=%s -> linkedid=%s",
+                bridge_channels, linked,
             )
             if linked:
                 channels = self._call_channels.get(linked, set())
-                channels.discard(channel)
+                for ch in bridge_channels:
+                    channels.discard(ch)
                 pbx_raw_logger.info(
                     "    -> Canali rimanenti per linkedid=%s: %s",
                     linked, channels,
