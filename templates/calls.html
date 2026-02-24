@@ -17,14 +17,19 @@
 
 {% block body_class %}page-calls{% endblock %}
 
+{% set has_filters = direction or number or ext or date_from or date_to %}
+
 {% block content %}
 <div class="toolbar">
     <h2>Registro chiamate</h2>
-    <a href="{{ url_for('index') }}" class="btn btn-secondary">Torna alla rubrica</a>
+    <a href="javascript:void(0)" id="filterToggle" class="filter-toggle">
+        Filtri{% if has_filters %} (attivi){% endif %}
+    </a>
+    <a href="{{ url_for('index') }}" class="btn btn-secondary btn-small">Rubrica</a>
 </div>
 
-{# Filtri #}
-<form method="GET" action="{{ url_for('call_log_page') }}" class="call-log-filters">
+{# Filtri (collassabili) #}
+<form method="GET" action="{{ url_for('call_log_page') }}" class="call-log-filters {{ 'filters-open' if has_filters }}" id="filterForm">
     <div class="filter-row">
         <label>
             Da
@@ -44,15 +49,17 @@
         </label>
         <label>
             Numero
-            <input type="text" name="number" value="{{ number }}" placeholder="Numero esterno">
+            <input type="text" name="number" value="{{ number }}" placeholder="Numero">
         </label>
         <label>
             Interno
-            <input type="text" name="ext" value="{{ ext }}" placeholder="Interno o nome">
+            <input type="text" name="ext" value="{{ ext }}" placeholder="Interno">
         </label>
         <div class="filter-actions">
             <button type="submit" class="btn btn-primary btn-small">Filtra</button>
-            <a href="{{ url_for('call_log_page') }}" class="btn btn-secondary btn-small">Reset</a>
+            {% if has_filters %}
+                <a href="{{ url_for('call_log_page') }}" class="btn btn-secondary btn-small">Reset</a>
+            {% endif %}
         </div>
     </div>
 </form>
@@ -61,11 +68,11 @@
 <table>
     <thead>
         <tr>
-            <th>Data/ora</th>
-            <th>Direzione</th>
+            <th>Data</th>
+            <th></th>
             <th>Numero esterno</th>
             <th>Interno</th>
-            <th>Risposta</th>
+            <th></th>
             <th>Durata</th>
             <th></th>
         </tr>
@@ -73,12 +80,12 @@
     <tbody>
         {% for entry in entries %}
         <tr class="{{ 'call-unanswered' if not entry.answered }}">
-            <td class="nowrap">{{ entry.timestamp }}</td>
+            <td class="nowrap" title="{{ entry.timestamp }}">{{ entry.timestamp[8:10] }}/{{ entry.timestamp[5:7] }} {{ entry.timestamp[11:16] }}</td>
             <td>
                 {% if entry.direction == 'inbound' %}
-                    <span class="badge badge-inbound" title="In entrata">&#8595; entrata</span>
+                    <span class="badge badge-inbound" title="In entrata">&#8595;</span>
                 {% else %}
-                    <span class="badge badge-outbound" title="In uscita">&#8593; uscita</span>
+                    <span class="badge badge-outbound" title="In uscita">&#8593;</span>
                 {% endif %}
             </td>
             <td>
@@ -150,4 +157,10 @@
 {% else %}
 <p class="empty">Nessuna chiamata registrata.</p>
 {% endif %}
+
+<script>
+document.getElementById('filterToggle').addEventListener('click', function() {
+    document.getElementById('filterForm').classList.toggle('filters-open');
+});
+</script>
 {% endblock %}
