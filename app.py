@@ -384,6 +384,28 @@ def call_log_page():
     finally:
         conn.close()
 
+    # Arricchisci le entry con il nome del contatto dalla rubrica LDAP
+    try:
+        contacts = ldap.get_all_contacts()
+        phone_to_contact = {}
+        for c in contacts:
+            for tel_key in ("telephoneNumber", "telephoneNumber2"):
+                tel = c.get(tel_key, "")
+                if tel:
+                    phone_to_contact[tel] = {
+                        "displayName": c["displayName"],
+                        "uid": c["uid"],
+                    }
+        for entry in entries:
+            norm = normalize_number(entry.get("external_number", ""))
+            match = phone_to_contact.get(norm) if norm else None
+            entry["contact_name"] = match["displayName"] if match else ""
+            entry["contact_uid"] = match["uid"] if match else ""
+    except LDAPException:
+        for entry in entries:
+            entry["contact_name"] = ""
+            entry["contact_uid"] = ""
+
     return render_template(
         "calls.html",
         entries=entries,

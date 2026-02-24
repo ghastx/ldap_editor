@@ -82,9 +82,16 @@
                 {% endif %}
             </td>
             <td>
-                <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
-                    {{ entry.external_number }}
-                </a>
+                {% if entry.contact_name %}
+                    <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')"
+                       class="phone-link" title="{{ entry.external_number }}">
+                        {{ entry.contact_name }}
+                    </a>
+                {% else %}
+                    <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
+                        {{ entry.external_number }}
+                    </a>
+                {% endif %}
             </td>
             <td>
                 {% if entry.internal_ext %}
@@ -111,8 +118,13 @@
                 {% endif %}
             </td>
             <td>
-                <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
-                   class="btn btn-primary btn-small" title="Aggiungi alla rubrica">+</a>
+                {% if entry.contact_uid %}
+                    <a href="{{ url_for('edit_contact', uid=entry.contact_uid) }}"
+                       class="btn btn-secondary btn-small" title="Modifica contatto">&#9998;</a>
+                {% else %}
+                    <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
+                       class="btn btn-primary btn-small" title="Aggiungi alla rubrica">+</a>
+                {% endif %}
             </td>
         </tr>
         {% endfor %}
