@@ -22,10 +22,9 @@
 {% block content %}
 <div class="toolbar">
     <h2>Registro chiamate</h2>
-    <a href="javascript:void(0)" id="filterToggle" class="filter-toggle">
+    <a href="javascript:void(0)" id="filterToggle" class="btn btn-secondary btn-small">
         Filtri{% if has_filters %} (attivi){% endif %}
     </a>
-    <a href="{{ url_for('index') }}" class="btn btn-secondary btn-small">Rubrica</a>
 </div>
 
 {# Filtri (collassabili) #}

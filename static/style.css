@@ -725,18 +725,6 @@ h2 {
     align-items: center;
 }
 
-/* Link toggle filtri nel toolbar */
-.filter-toggle {
-    color: #3498db;
-    text-decoration: none;
-    font-size: 14px;
-    cursor: pointer;
-}
-
-.filter-toggle:hover {
-    text-decoration: underline;
-}
-
 /* Badge direzione chiamata */
 .badge-inbound {
     background: #d6eaf8;
@@ -748,13 +736,17 @@ h2 {
     color: #196f3d;
 }
 
-/* Riga chiamata non risposta */
-.call-unanswered {
+/* Riga chiamata non risposta (alternata) */
+.call-unanswered:nth-child(odd) {
     background: #fff0f0 !important;
 }
 
+.call-unanswered:nth-child(even) {
+    background: #ffe4e4 !important;
+}
+
 .call-unanswered:hover {
-    background: #ffe0e0 !important;
+    background: #ffd4d4 !important;
 }
 
 /* Testo secondario */
