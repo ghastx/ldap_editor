@@ -77,19 +77,112 @@ L'applicazione sara' disponibile su `http://localhost:5000`.
 
 ### Produzione con Gunicorn e gevent
 
-In produzione l'app gira con Gunicorn e worker **gevent** (necessario per il supporto SSE e il monitor chiamate in tempo reale). E' importante usare **1 solo worker** perche' il thread del monitor PBX deve essere condiviso tra tutte le connessioni.
+In produzione l'app gira con Gunicorn e worker **gevent** (necessario per il supporto SSE e il monitor chiamate in tempo reale). È importante usare **1 solo worker** (`-w 1`) perché il PBXMonitor gira in un thread singleton e le code SSE sono in memoria.
 
 ```bash
 pip install gunicorn gevent
 gunicorn -w 1 -k gevent -b 0.0.0.0:5000 app:app
 ```
 
-Un file `ldap-editor.service` per systemd e' incluso nel repository. Per installarlo:
+### Installazione come servizio systemd
+
+1. **Copiare il progetto in `/opt`:**
+
+```bash
+sudo cp -r ~/ldap_editor /opt/ldap_editor
+sudo chown -R www-data:www-data /opt/ldap_editor
+```
+
+2. **Creare il file `.env`** con le variabili d'ambiente (se non già presente):
+
+```bash
+sudo cp /opt/ldap_editor/.env.example /opt/ldap_editor/.env
+sudo nano /opt/ldap_editor/.env
+```
+
+3. **Installare e avviare il servizio:**
 
 ```bash
 sudo cp ldap-editor.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now ldap-editor
+```
+
+4. **Verificare che sia attivo:**
+
+```bash
+sudo systemctl status ldap-editor
+journalctl -u ldap-editor -f
+```
+
+### Configurazione Nginx (reverse proxy con HTTPS)
+
+Creare il file `/etc/nginx/sites-available/ldap-editor`:
+
+```nginx
+server {
+    listen 80;
+    server_name <INDIRIZZO_IP_O_DOMINIO>;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name <INDIRIZZO_IP_O_DOMINIO>;
+
+    ssl_certificate /etc/nginx/ssl/ldap-editor.crt;
+    ssl_certificate_key /etc/nginx/ssl/ldap-editor.key;
+
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # SSE - serve timeout lungo e no buffering
+    location /api/events {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400;
+        proxy_set_header Connection '';
+        proxy_http_version 1.1;
+        chunked_transfer_encoding off;
+    }
+}
+```
+
+Abilitare il sito:
+
+```bash
+sudo ln -s /etc/nginx/sites-available/ldap-editor /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### Aggiornamento del programma
+
+Per aggiornare l'applicazione dopo modifiche al codice sorgente:
+
+```bash
+cd ~/ldap_editor
+git pull
+
+sudo rsync -a --delete --exclude='.env' --exclude='*.db' --exclude='*.log' \
+    ~/ldap_editor/ /opt/ldap_editor/
+
+sudo chown -R www-data:www-data /opt/ldap_editor
+sudo systemctl restart ldap-editor
+```
+
+Il comando `rsync` copia i file aggiornati escludendo la configurazione locale (`.env`), i database (`*.db`) e i log (`*.log`) per non sovrascrivere i dati di produzione.
+
+Per verificare che l'aggiornamento sia andato a buon fine:
+
+```bash
+sudo systemctl status ldap-editor
+journalctl -u ldap-editor --since "1 min ago"
 ```
 
 ## Click-to-dial
