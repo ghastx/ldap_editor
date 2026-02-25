@@ -8,7 +8,7 @@
 //
 // Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 
-var CACHE_NAME = 'rubrica-ldap-v1';
+var CACHE_NAME = 'rubrica-ldap-v2';
 
 // Asset statici da precaricare (app shell)
 var PRECACHE_URLS = [
@@ -92,30 +92,15 @@ self.addEventListener('fetch', function(event) {
         return;
     }
 
-    // 5. Pagine HTML (navigate): network-first con fallback offline
+    // 5. Pagine HTML (navigate): network-only con fallback offline
+    //    Non si cachano le pagine HTML perche' i dati LDAP sono sempre dinamici.
+    //    Il SW serve solo a mostrare la pagina offline in caso di rete assente.
     if (request.mode === 'navigate') {
         event.respondWith(
-            fetch(request).then(function(response) {
-                if (response.ok) {
-                    var clone = response.clone();
-                    caches.open(CACHE_NAME).then(function(cache) {
-                        cache.put(request, clone);
-                    });
-                }
-                return response;
-            }).catch(function() {
-                return caches.match(request).then(function(cached) {
-                    return cached || caches.match('/offline');
-                });
+            fetch(request).catch(function() {
+                return caches.match('/offline');
             })
         );
         return;
     }
-
-    // 6. Tutto il resto: network-first
-    event.respondWith(
-        fetch(request).catch(function() {
-            return caches.match(request);
-        })
-    );
 });
