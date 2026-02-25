@@ -1,0 +1,38 @@
+{#
+  offline.html - Pagina visualizzata quando l'app e' offline
+
+  Mostrata dal service worker quando la rete non e' disponibile
+  e la pagina richiesta non e' nella cache.
+
+  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+
+  Favicon: "☎" (260e.svg) from Twitter Twemoji
+  - Author: Copyright 2020 Twitter, Inc and other contributors
+  - Source: https://github.com/twitter/twemoji
+  - License: CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+#}
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rubrica LDAP - Offline</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32x32.png">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><a href="/">Rubrica LDAP</a></h1>
+        </header>
+        <main>
+            <div class="empty">
+                Connessione non disponibile.<br>
+                Verifica la connessione di rete e riprova.
+            </div>
+        </main>
+    </div>
+</body>
+</html>

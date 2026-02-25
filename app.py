@@ -25,7 +25,7 @@ import sqlite3
 
 import phonenumbers
 
-from flask import Flask, Response, flash, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
 from ldap3.core.exceptions import LDAPException
 
 from audit_log import DB_PATH, get_log, log_action
@@ -122,6 +122,31 @@ def normalize_number(number):
         return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     except phonenumbers.NumberParseException:
         return None
+
+
+# --- Route PWA (manifest, service worker, offline) ---
+
+
+@app.route("/manifest.json")
+def manifest():
+    """Serve il Web App Manifest per la PWA."""
+    return app.send_static_file("manifest.json")
+
+
+@app.route("/sw.js")
+def service_worker():
+    """Serve il service worker dalla root per avere scope '/'.
+
+    Il service worker deve essere servito dalla root (non da /static/)
+    perche' il suo scope e' limitato alla directory da cui viene servito.
+    """
+    return app.send_static_file("sw.js")
+
+
+@app.route("/offline")
+def offline():
+    """Pagina offline mostrata dal service worker quando la rete non e' disponibile."""
+    return render_template("offline.html")
 
 
 # --- Route principali ---

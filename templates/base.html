@@ -20,6 +20,12 @@
     <title>Rubrica LDAP</title>
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='favicon-32x32.png') }}">
+    {# PWA: manifest e meta tag #}
+    <link rel="manifest" href="{{ url_for('manifest') }}">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -77,6 +83,14 @@
     <div id="callBannerContainer" class="call-banner-container"></div>
 
     <script>
+    // --- Registrazione Service Worker (PWA) ---
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js');
+        });
+    }
+
     // --- Gestione interno VoIP (persistenza in localStorage) ---
 
     (function() {
