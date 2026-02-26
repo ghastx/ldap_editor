@@ -541,11 +541,22 @@ class PBXMonitor:
 
             state = entry.get("state", "")
             if state in ("Ring", "Ringing"):
-                # Canale trunk di una chiamata in entrata: registra il
-                # linkedid come chiamata esterna e salta (le notifiche
-                # si basano sui canali extension, non trunk)
+                # Canale trunk con inbound_trunk_name: registra come
+                # incoming SOLO se non esistono già canali interni per
+                # quel linkedid (altrimenti è una outbound)
                 if entry.get("inbound_trunk_name"):
-                    if linkedid:  # ignora linkedid vuoti
+                    if linkedid:
+                        existing_channels = self._call_channels.get(linkedid, set())
+                        has_internal = any(
+                            "trunk" not in ch.lower() for ch in existing_channels
+                        )
+                        if has_internal:
+                            pbx_raw_logger.info(
+                                "    -> Trunk con inbound_trunk_name ma canali interni gia' presenti "
+                                "per linkedid=%s -> OUTBOUND, non registrare come incoming",
+                                linkedid,
+                            )
+                            return
                         self._incoming_linkedids.add(linkedid)
                     pbx_raw_logger.info(
                         "    -> Trunk inbound rilevato, linkedid=%s registrato come incoming",
