@@ -11,7 +11,7 @@
 //
 // Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 
-var CACHE_NAME = 'rubrica-ldap-v3';
+var CACHE_NAME = 'rubrica-ldap-v4';
 
 // Asset statici da precaricare
 var PRECACHE_URLS = [

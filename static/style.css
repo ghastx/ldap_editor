@@ -685,6 +685,10 @@ h2 {
     text-align: center;
 }
 
+.page-calls td:last-child .btn {
+    padding: 10px;
+}
+
 /* Filtri (collassabili) */
 .call-log-filters {
     display: none;
