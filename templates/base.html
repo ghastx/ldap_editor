@@ -388,6 +388,32 @@
             };
         }
 
+        // Rileva risveglio da sospensione PC e forza riconnessione SSE.
+        // Un timer a 30s verifica il gap: se il tempo reale trascorso
+        // supera 60s, il PC era in sospensione e la SSE e' morta.
+        // Firefox non riconnette automaticamente EventSource dopo il
+        // resume, lasciandolo in stato CONNECTING indefinitamente.
+        var _lastAliveCheck = Date.now();
+        setInterval(function() {
+            var now = Date.now();
+            if (now - _lastAliveCheck > 60000 && evtSource) {
+                connectSSE();
+            }
+            _lastAliveCheck = now;
+        }, 30000);
+
+        // Supplementare: riconnetti anche quando la pagina torna visibile
+        // dopo un lungo periodo nascosta (copre il caso in cui il timer
+        // setInterval non scatti subito dopo il resume)
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden && evtSource) {
+                var elapsed = Date.now() - _lastAliveCheck;
+                if (elapsed > 45000 || evtSource.readyState === EventSource.CLOSED) {
+                    connectSSE();
+                }
+            }
+        });
+
         // Carica lo stato iniziale delle chiamate attive e avvia SSE
         fetch('/api/calls')
             .then(function(r) { return r.json(); })
