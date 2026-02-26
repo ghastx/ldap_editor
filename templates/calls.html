@@ -126,10 +126,18 @@
             <td>
                 {% if entry.contact_uid %}
                     <a href="{{ url_for('edit_contact', uid=entry.contact_uid) }}"
-                       class="btn btn-secondary btn-small" title="Modifica contatto">&#9998;</a>
+                       class="btn btn-secondary btn-small" title="Modifica contatto">
+                        <svg width="16" height="16" fill="currentColor">
+                            <use href="#icon-pencil"></use>
+                        </svg>
+                    </a>
                 {% else %}
                     <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
-                       class="btn btn-primary btn-small" title="Aggiungi alla rubrica">+</a>
+                       class="btn btn-primary btn-small" title="Aggiungi alla rubrica">
+                        <svg width="16" height="16" fill="currentColor">
+                            <use href="#icon-plus"></use>
+                        </svg>
+                    </a>
                 {% endif %}
             </td>
         </tr>

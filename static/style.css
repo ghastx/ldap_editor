@@ -146,6 +146,12 @@ nav a:hover {
     white-space: nowrap;
 }
 
+.btn svg {
+    width: 16px;
+    height: 16px;
+    display: block; /* elimina spazio baseline */
+}
+
 /* Azione principale (aggiungi, salva) */
 .btn-primary {
     background: #3498db;
