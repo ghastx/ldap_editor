@@ -673,11 +673,16 @@ h2 {
    16. Registro chiamate (pagina /calls)
    ========================================================================== */
 
-/* Tabella chiamate compatta */
+/* Tabella chiamate: spaziatura orizzontale ridotta */
 .page-calls th,
 .page-calls td {
-    padding: 6px 10px;
-    font-size: 13px;
+    padding: 12px 10px;
+}
+
+/* Centra verticalmente il pulsante nella colonna azioni */
+.page-calls td:last-child {
+    vertical-align: middle;
+    text-align: center;
 }
 
 /* Filtri (collassabili) */
@@ -740,19 +745,6 @@ h2 {
 .badge-outbound {
     background: #d5f5e3;
     color: #196f3d;
-}
-
-/* Riga chiamata non risposta (alternata) */
-.call-unanswered:nth-child(odd) {
-    background: #fff0f0 !important;
-}
-
-.call-unanswered:nth-child(even) {
-    background: #ffe4e4 !important;
-}
-
-.call-unanswered:hover {
-    background: #ffd4d4 !important;
 }
 
 /* Testo secondario */

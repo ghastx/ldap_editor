@@ -78,7 +78,7 @@
     </thead>
     <tbody>
         {% for entry in entries %}
-        <tr class="{{ 'call-unanswered' if not entry.answered }}">
+        <tr>
             <td class="nowrap" title="{{ entry.timestamp }}">{{ entry.timestamp[8:10] }}/{{ entry.timestamp[5:7] }} {{ entry.timestamp[11:16] }}</td>
             <td>
                 {% if entry.direction == 'inbound' %}
