@@ -673,10 +673,32 @@ h2 {
    16. Registro chiamate (pagina /calls)
    ========================================================================== */
 
-/* Tabella chiamate: spaziatura orizzontale ridotta */
+/* Tabella chiamate: righe compatte */
 .page-calls th,
 .page-calls td {
-    padding: 12px 10px;
+    padding: 6px 10px;
+    vertical-align: middle;
+}
+
+/* Badge direzione e stato chiamata: stesse dimensioni dei pulsanti azione */
+.page-calls .badge-inbound,
+.page-calls .badge-outbound,
+.page-calls .badge-success,
+.page-calls .badge-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 4px;
+    font-size: 16px;
+}
+
+.page-calls .badge-inbound svg,
+.page-calls .badge-outbound svg {
+    width: 20px;
+    height: 20px;
 }
 
 /* Centra verticalmente il pulsante nella colonna azioni */
@@ -686,7 +708,12 @@ h2 {
 }
 
 .page-calls td:last-child .btn {
-    padding: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
 }
 
 /* Filtri (collassabili) */
