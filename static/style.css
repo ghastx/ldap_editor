@@ -147,8 +147,8 @@ nav a:hover {
 }
 
 .btn svg {
-    width: 16px;
-    height: 16px;
+    width: 20px;
+    height: 20px;
     display: block; /* elimina spazio baseline */
 }
 
@@ -680,40 +680,20 @@ h2 {
     vertical-align: middle;
 }
 
-/* Badge direzione e stato chiamata: stesse dimensioni dei pulsanti azione */
-.page-calls .badge-inbound,
-.page-calls .badge-outbound,
-.page-calls .badge-success,
-.page-calls .badge-danger {
+/* Pulsanti icona quadrati nella tabella chiamate */
+.page-calls .btn-small {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 36px;
     height: 36px;
     padding: 0;
-    border-radius: 4px;
-    font-size: 16px;
-}
-
-.page-calls .badge-inbound svg,
-.page-calls .badge-outbound svg {
-    width: 20px;
-    height: 20px;
 }
 
 /* Centra verticalmente il pulsante nella colonna azioni */
 .page-calls td:last-child {
     vertical-align: middle;
     text-align: center;
-}
-
-.page-calls td:last-child .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    padding: 0;
 }
 
 /* Filtri (collassabili) */
@@ -767,15 +747,25 @@ h2 {
     align-items: center;
 }
 
-/* Badge direzione chiamata */
-.badge-inbound {
+/* Colori pulsanti direzione e stato chiamata */
+.btn-inbound {
     background: #d6eaf8;
     color: #1a5276;
 }
 
-.badge-outbound {
-    background: #d5f5e3;
-    color: #196f3d;
+.btn-outbound {
+    background: #fdebd0;
+    color: #935116;
+}
+
+.btn-answered {
+    background: #d4edda;
+    color: #155724;
+}
+
+.btn-missed {
+    background: #f8d7da;
+    color: #721c24;
 }
 
 /* Testo secondario */

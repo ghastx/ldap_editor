@@ -82,14 +82,14 @@
             <td class="nowrap" title="{{ entry.timestamp }}">{{ entry.timestamp[8:10] }}/{{ entry.timestamp[5:7] }} {{ entry.timestamp[11:16] }}</td>
             <td>
                 {% if entry.direction == 'inbound' %}
-                    <span class="badge badge-inbound" title="In entrata">
-                        <svg width="16" height="16" fill="currentColor">
+                    <span class="btn btn-small btn-inbound" title="In entrata">
+                        <svg fill="currentColor">
                             <use href="#icon-inbound"></use>
                         </svg>
                     </span>
                 {% else %}
-                    <span class="badge badge-outbound" title="In uscita">
-                        <svg width="16" height="16" fill="currentColor">
+                    <span class="btn btn-small btn-outbound" title="In uscita">
+                        <svg fill="currentColor">
                             <use href="#icon-outbound"></use>
                         </svg>
                     </span>
@@ -109,9 +109,10 @@
             </td>
             <td>
                 {% if entry.internal_ext %}
-                    {{ entry.internal_ext }}
                     {% if entry.internal_name %}
-                        <br><small class="text-muted">{{ entry.internal_name }}</small>
+                        {{ entry.internal_name }}
+                    {% else %}
+                        {{ entry.internal_ext }}
                     {% endif %}
                 {% else %}
                     <span class="text-muted">-</span>
@@ -119,9 +120,17 @@
             </td>
             <td>
                 {% if entry.answered %}
-                    <span class="badge badge-success" title="Risposta">&#10003;</span>
+                    <span class="btn btn-small btn-answered" title="Risposta">
+                        <svg fill="currentColor">
+                            <use href="#icon-success"></use>
+                        </svg>
+                    </span>
                 {% else %}
-                    <span class="badge badge-danger" title="Non risposta">&#10007;</span>
+                    <span class="btn btn-small btn-missed" title="Non risposta">
+                        <svg fill="currentColor">
+                            <use href="#icon-fail"></use>
+                        </svg>
+                    </span>
                 {% endif %}
             </td>
             <td class="nowrap">
@@ -135,14 +144,14 @@
                 {% if entry.contact_uid %}
                     <a href="{{ url_for('edit_contact', uid=entry.contact_uid) }}"
                        class="btn btn-secondary btn-small" title="Modifica contatto">
-                        <svg width="16" height="16" fill="currentColor">
+                        <svg fill="currentColor">
                             <use href="#icon-pencil"></use>
                         </svg>
                     </a>
                 {% else %}
                     <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
                        class="btn btn-primary btn-small" title="Aggiungi alla rubrica">
-                        <svg width="16" height="16" fill="currentColor">
+                        <svg fill="currentColor">
                             <use href="#icon-plus"></use>
                         </svg>
                     </a>
