@@ -103,7 +103,7 @@
                     </a>
                 {% else %}
                     <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
-                        {{ entry.external_number }}
+                        {{ entry.external_number|format_phone }}
                     </a>
                 {% endif %}
             </td>
