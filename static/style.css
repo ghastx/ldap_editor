@@ -230,6 +230,12 @@ td a:hover {
     text-decoration: underline;
 }
 
+/* nelle righe dove c'e' il doppio numero riduce la spaziatura */
+td.phone-doppio {
+    line-height: 1.2;
+    padding: 7px 16px;
+}
+
 /* Colonna azioni: pulsanti Modifica ed Elimina affiancati */
 .actions {
     display: flex;
