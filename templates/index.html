@@ -48,11 +48,17 @@
                 {% endif %}
             </td>
             <td class="actions">
-                <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-small">Modifica</a>
+                <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-secondary btn-small" title="Modifica contatto">
+                    <svg fill="currentColor">
+                        <use href="#icon-pencil"></use>
+                    </svg>
+                </a>
                 {# Il pulsante Elimina apre il modale di conferma invece di eliminare direttamente #}
-                <button type="button" class="btn btn-small btn-danger"
+                <button type="button" class="btn btn-small btn-danger" title="Cancella contatto"
                         onclick="showDeleteModal('{{ contact.displayName }}', '{{ url_for('delete_contact', uid=contact.uid) }}')">
-                    Elimina
+                    <svg fill="currentColor">
+                        <use href="#icon-cestino"></use>
+                    </svg>
                 </button>
             </td>
         </tr>
