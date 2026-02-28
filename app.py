@@ -55,7 +55,6 @@ ldap = LDAPClient(
     }
 )
 
-
 # Inizializza il client UCM per il click-to-dial
 ucm = UCMClient(
     host=app.config["UCM_HOST"],
@@ -113,15 +112,28 @@ def normalize_number(number):
     try:
         # Tenta il parsing assumendo l'Italia come regione predefinita
         parsed = phonenumbers.parse(number, "IT")
-        
+
         # Verifica se il numero è formalmente valido
         if not phonenumbers.is_valid_number(parsed):
             return None
-            
+
         # Ritorna il numero nel formato internazionale E.164 (es: +39...)
         return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.E164)
     except phonenumbers.NumberParseException:
         return None
+
+# --- formatta un numero in formato nazionale per la visualizzazione in rubrica
+
+@app.template_filter('format_phone')
+def format_phone(number):
+    """Formatta il numero in formato nazionale per la visualizzazione."""
+    if not number:
+        return ''
+    try:
+        parsed = phonenumbers.parse(number, 'IT')
+        return phonenumbers.format_number(parsed, phonenumbers.PhoneNumberFormat.NATIONAL)
+    except phonenumbers.NumberParseException:
+        return number
 
 
 # --- Route PWA (manifest, service worker, offline) ---
