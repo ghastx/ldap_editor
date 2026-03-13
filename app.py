@@ -524,6 +524,41 @@ def api_calls():
     return jsonify(calls=list(pbx.get_active_calls().values()))
 
 
+def _parse_last_event_id():
+    """Legge Last-Event-ID (header o querystring) e ritorna un int valido."""
+    raw = request.headers.get("Last-Event-ID", "").strip()
+    if not raw:
+        raw = request.args.get("last_event_id", "").strip()
+    if not raw:
+        return None
+    try:
+        value = int(raw)
+        return value if value >= 0 else None
+    except ValueError:
+        return None
+
+
+def _encode_sse_event(envelope):
+    """Codifica un envelope evento nel formato SSE."""
+    if isinstance(envelope, dict) and "event" in envelope and "id" in envelope:
+        event_id = envelope.get("id")
+        event = envelope.get("event") or {}
+    else:
+        event_id = None
+        event = envelope or {}
+
+    event_type = event.get("event", "message")
+    data = {k: v for k, v in event.items() if k != "event"}
+    payload = json.dumps(data, ensure_ascii=False)
+
+    parts = []
+    if event_id is not None:
+        parts.append(f"id: {event_id}")
+    parts.append(f"event: {event_type}")
+    parts.append(f"data: {payload}")
+    return "\n".join(parts) + "\n\n"
+
+
 @app.route("/api/events")
 def api_events():
     """Endpoint Server-Sent Events per lo streaming degli eventi PBX.
@@ -537,7 +572,13 @@ def api_events():
     q = queue.Queue()
     pbx.subscribe_events(q)
 
+    last_event_id = _parse_last_event_id()
+    replay = pbx.get_events_since(last_event_id) if last_event_id is not None else []
+
     def stream():
+        for event in replay:
+            yield _encode_sse_event(event)
+
         try:
             while True:
                 try:
@@ -547,9 +588,7 @@ def api_events():
                     yield ":keepalive\n\n"
                     continue
 
-                event_type = event.pop("event", "message")
-                data = json.dumps(event, ensure_ascii=False)
-                yield f"event: {event_type}\ndata: {data}\n\n"
+                yield _encode_sse_event(event)
         except GeneratorExit:
             pass
         finally:
