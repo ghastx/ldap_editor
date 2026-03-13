@@ -228,11 +228,13 @@
                           + ' &#8594; ' + escapeHtml(c.connectednum || '')
                           + '</div>';
                 } else if (c.state === 'connected') {
+                    var left = c.display1 || c.name1 || c.callerid1 || '?';
+                    var right = c.display2 || c.name2 || c.callerid2 || '?';
                     html += '<div class="call-panel-item call-panel-connected">'
                           + '<span class="call-panel-state">In corso</span> '
-                          + escapeHtml(c.name1 || c.callerid1 || '?')
+                          + escapeHtml(left)
                           + ' &#8596; '
-                          + escapeHtml(c.name2 || c.callerid2 || '?')
+                          + escapeHtml(right)
                           + '</div>';
                 }
             });
@@ -315,6 +317,22 @@
                 });
         }
 
+        function resolveConnectedDisplay(uid) {
+            var call = activeCalls[uid];
+            if (!call || call.state !== "connected") return;
+
+            lookupName(call.callerid1, function(name1) {
+                lookupName(call.callerid2, function(name2) {
+                    var current = activeCalls[uid];
+                    if (!current || current.state !== "connected") return;
+
+                    current.display1 = name1 || current.name1 || current.callerid1 || "?";
+                    current.display2 = name2 || current.name2 || current.callerid2 || "?";
+                    updatePanel();
+                });
+            });
+        }
+
         // --- Gestione eventi SSE ---
 
         function handleCallRing(data) {
@@ -363,6 +381,7 @@
                 name2: data.name2 || ''
             };
             updateBadge();
+            resolveConnectedDisplay(uid);
             // Aggiorna solo lo stato nel pannello, nessun banner visibile
             removeCallBanner(uid, true);
         }
@@ -554,7 +573,9 @@
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 (data.calls || []).forEach(function(c) {
-                    if (c.uniqueid) activeCalls[c.uniqueid] = c;
+                    if (!c.uniqueid) return;
+                    activeCalls[c.uniqueid] = c;
+                    if (c.state === "connected") resolveConnectedDisplay(c.uniqueid);
                 });
                 updateBadge();
             })
