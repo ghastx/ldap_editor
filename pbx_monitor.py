@@ -28,11 +28,13 @@ import asyncio
 import hashlib
 import json
 import logging
+import random
 import sqlite3
 import ssl
 import threading
+import time
 import uuid
-from collections import OrderedDict
+from collections import OrderedDict, deque
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 
@@ -62,6 +64,8 @@ pbx_raw_logger.addHandler(_raw_handler)
 # Intervalli in secondi
 HEARTBEAT_INTERVAL = 30
 RECONNECT_DELAY = 10
+MAX_RECONNECT_DELAY = 60
+CONNECTION_STALE_AFTER = 95
 
 
 def _make_ssl_context():
@@ -117,6 +121,8 @@ class PBXMonitor:
         # Coda per notificare eventi ai consumer (es. SSE endpoint)
         self._event_queues = []
         self._queues_lock = threading.Lock()
+        self._event_seq = 0
+        self._event_history = deque(maxlen=500)
 
         # Mapping interni per tracciare i canali di ogni chiamata.
         # Acceduti solo dal thread asyncio, non serve lock.
@@ -141,6 +147,7 @@ class PBXMonitor:
         self._running = False
         self._loop = None
         self._thread = None
+        self._last_rx_ts = 0.0
 
     # ------------------------------------------------------------------
     # API pubblica (thread-safe)
@@ -172,6 +179,15 @@ class PBXMonitor:
                 self._event_queues.remove(queue)
             except ValueError:
                 pass
+
+    def get_events_since(self, last_event_id):
+        """Restituisce gli eventi con id maggiore di last_event_id."""
+        with self._queues_lock:
+            return [
+                item.copy()
+                for item in self._event_history
+                if item.get("id", 0) > last_event_id
+            ]
 
     def start(self):
         """Avvia il monitor in un thread background dedicato."""
@@ -214,9 +230,11 @@ class PBXMonitor:
 
     async def _connection_loop(self):
         """Ciclo di connessione con riconnessione automatica."""
+        retry_count = 0
         while self._running:
             try:
                 await self._connect_and_run()
+                retry_count = 0
             except (
                 websockets.exceptions.ConnectionClosed,
                 websockets.exceptions.WebSocketException,
@@ -236,12 +254,16 @@ class PBXMonitor:
                 self._call_channels.clear()
                 self._incoming_linkedids.clear()
                 self._call_log_meta.clear()
+                self._last_rx_ts = 0.0
 
             if self._running:
+                retry_count += 1
+                base_delay = min(RECONNECT_DELAY * (2 ** (retry_count - 1)), MAX_RECONNECT_DELAY)
+                delay = base_delay + random.uniform(0, 1)
                 logger.info(
-                    "Riconnessione al PBX tra %d secondi...", RECONNECT_DELAY
+                    "Riconnessione al PBX tra %.1f secondi...", delay
                 )
-                await asyncio.sleep(RECONNECT_DELAY)
+                await asyncio.sleep(delay)
 
     async def _connect_and_run(self):
         """Connessione, autenticazione, sottoscrizione e ricezione eventi."""
@@ -258,6 +280,7 @@ class PBXMonitor:
             close_timeout=5,
         ) as ws:
             self._ws = ws
+            self._last_rx_ts = time.monotonic()
             logger.info("WebSocket connesso a %s", self.ws_url)
             pbx_raw_logger.info("WebSocket connesso")
 
@@ -383,6 +406,13 @@ class PBXMonitor:
         while True:
             await asyncio.sleep(HEARTBEAT_INTERVAL)
             try:
+                if time.monotonic() - self._last_rx_ts > CONNECTION_STALE_AFTER:
+                    logger.warning(
+                        "Connessione PBX senza traffico da oltre %ds: forzo reconnessione",
+                        CONNECTION_STALE_AFTER,
+                    )
+                    await ws.close(code=1011, reason="stale connection")
+                    break
                 await self._send(ws, {"action": "heartbeat"})
                 logger.debug("Heartbeat inviato")
             except Exception:
@@ -400,6 +430,7 @@ class PBXMonitor:
         array di oggetti (notifiche multiple nello stesso frame).
         """
         async for raw in ws:
+            self._last_rx_ts = time.monotonic()
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
@@ -1000,14 +1031,17 @@ class PBXMonitor:
     # ------------------------------------------------------------------
 
     def _broadcast_event(self, event):
-        """Invia un evento a tutte le code registrate.
+        """Invia un evento a tutte le code registrate con id progressivo.
 
-        Le code piene vengono svuotate per evitare blocchi.
+        Mantiene anche una history in memoria per il replay SSE su riconnessione.
         """
         pbx_raw_logger.info("BROADCAST: %s", _pretty_json(event))
         with self._queues_lock:
+            self._event_seq += 1
+            envelope = {"id": self._event_seq, "event": event}
+            self._event_history.append(envelope)
             for q in self._event_queues:
                 try:
-                    q.put_nowait(event)
+                    q.put_nowait(envelope)
                 except Exception:
                     pass
