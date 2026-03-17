@@ -818,35 +818,10 @@ h2 {
 
 /* tooltip note in lista chiamate */
 
-.icon-note-wrap {
-    position: relative;
-    vertical-align: middle;
-    margin-left: 4px;
-    cursor: help;
-}
-
-.icon-note {
+.note-link {
     color: var(--text-muted);
-    vertical-align: middle;
-}
-
-.icon-note-wrap::after {
-    content: attr(data-tip);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 4px 8px;
-    background: var(--bg-dark, #333);
-    color: #fff;
-    font-size: 12px;
-    border-radius: 4px;
-    white-space: nowrap;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.1s;
-}
-
-.icon-note-wrap:hover::after {
-    opacity: 1;
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: help;
+    margin-left: 4px;
 }
