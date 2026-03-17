@@ -102,11 +102,14 @@ Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
                 <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link"
                     title="{{ entry.external_number }}">
                     {{ entry.contact_name }}
-                </a> <span class="text-muted" title="{{ entry.description }}">
+                </a>
+                {% if entry.description %}
+                <span class="btn btn-small" title="{{ entry.description }}">
                     <svg fill="currentColor">
                         <use href="#icon-note"></use>
                     </svg>
                 </span>
+                {% endif %}
                 {% else %}
                 <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
                     {{ entry.external_number|format_phone }}
