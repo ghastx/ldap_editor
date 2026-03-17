@@ -207,12 +207,13 @@ def add_contact():
         sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
         telephone2 = request.form.get("telephone2", "").strip()
+        description = request.form.get("description", "").strip()
 
         if not sn or not telephone:
             flash("Cognome/Ragione Sociale e numero di telefono sono obbligatori.", "danger")
             return render_template(
                 "add.html", title=title, given_name=given_name, sn=sn,
-                telephone=telephone, telephone2=telephone2,
+                telephone=telephone, telephone2=telephone2, description=description,
             )
 
         # Normalizza i numeri prima del salvataggio
@@ -223,7 +224,7 @@ def add_contact():
             flash("I numeri di telefono non sono nel formato corretto.", "danger")
             return render_template(
                 "add.html", title=title, given_name=given_name, sn=sn,
-                telephone=telephone, telephone2=telephone2,
+                telephone=telephone, telephone2=telephone2, description=description,
             )
 
         # Compone il displayName dai campi non vuoti: titolo + nome + cognome
@@ -231,7 +232,7 @@ def add_contact():
         # Genera l'uid dal displayName (stesso pattern delle entry esistenti)
         uid = display_name.replace(" ", "")
         try:
-            ldap.add_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title)
+            ldap.add_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title, description)
             detail = f"Nome: {display_name}, Tel: {telephone}"
             if telephone2:
                 detail += f", Tel2: {telephone2}"
@@ -242,11 +243,11 @@ def add_contact():
             flash(f"Errore nell'aggiunta del contatto: {e}", "danger")
             return render_template(
                 "add.html", title=title, given_name=given_name, sn=sn,
-                telephone=telephone, telephone2=telephone2,
+                telephone=telephone, telephone2=telephone2, description=description,
             )
 
     telephone = request.args.get("telephone", "")
-    return render_template("add.html", title="", given_name="", sn="", telephone=telephone, telephone2="")
+    return render_template("add.html", title="", given_name="", sn="", telephone=telephone, telephone2="", description="")
 
 
 @app.route("/edit/<uid>", methods=["GET", "POST"])
@@ -263,6 +264,7 @@ def edit_contact(uid):
         sn = request.form.get("sn", "").strip()
         telephone = request.form.get("telephone", "").strip()
         telephone2 = request.form.get("telephone2", "").strip()
+        description = request.form.get("description", "").strip()
 
         if not sn or not telephone:
             flash("Cognome/Ragione Sociale e numero di telefono sono obbligatori.", "danger")
@@ -273,6 +275,7 @@ def edit_contact(uid):
                     "displayName": " ".join(part for part in [title, given_name, sn] if part),
                     "sn": sn, "givenName": given_name, "title": title,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                    "description": description,
                 },
             )
 
@@ -289,6 +292,7 @@ def edit_contact(uid):
                     "displayName": " ".join(part for part in [title, given_name, sn] if part),
                     "sn": sn, "givenName": given_name, "title": title,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                    "description": description,
                 },
             )
 
@@ -298,7 +302,7 @@ def edit_contact(uid):
         try:
             # Legge i dati attuali prima della modifica per il confronto
             old_contact = ldap.get_contact(uid)
-            ldap.update_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title)
+            ldap.update_contact(uid, display_name, sn, norm_tel, norm_tel2, given_name, title, description)
 
             # Costruisce i dettagli mostrando solo i campi modificati
             changes = []
@@ -308,6 +312,8 @@ def edit_contact(uid):
                 changes.append(f"Tel: {old_contact['telephoneNumber']} -> {telephone}")
             if old_contact and old_contact.get("telephoneNumber2", "") != telephone2:
                 changes.append(f"Tel2: {old_contact.get('telephoneNumber2', '')} -> {telephone2}")
+            if old_contact and old_contact.get("description", "") != description:
+                changes.append(f"Note: {old_contact.get('description', '')} -> {description}")
             log_action(
                 "modificato", uid,
                 "; ".join(changes) if changes else "Nessuna modifica rilevata",
@@ -323,6 +329,7 @@ def edit_contact(uid):
                     "uid": uid, "displayName": display_name,
                     "sn": sn, "givenName": given_name, "title": title,
                     "telephoneNumber": telephone, "telephoneNumber2": telephone2,
+                    "description": description,
                 },
             )
 

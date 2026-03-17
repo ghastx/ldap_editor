@@ -65,6 +65,9 @@ class LDAPClient:
         title = ""
         if hasattr(entry, "title") and entry.title:
             title = str(entry.title)
+        description = ""
+        if hasattr(entry, "description") and entry.description:
+            description = str(entry.description)
         return {
             "uid": str(entry.uid) if entry.uid else "",
             "cn": str(entry.cn) if entry.cn else "",
@@ -72,6 +75,7 @@ class LDAPClient:
             "sn": str(entry.sn) if entry.sn else "",
             "givenName": given_name,
             "title": title,
+            "description": description,
             "telephoneNumber": str(phones[0]) if len(phones) > 0 else "",
             "telephoneNumber2": str(phones[1]) if len(phones) > 1 else "",
         }
@@ -88,7 +92,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 "(objectClass=inetOrgPerson)",
-                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "description", "telephoneNumber"],
             )
             contacts = [self._entry_to_dict(entry) for entry in conn.entries]
             contacts.sort(key=lambda c: c["displayName"].lower())
@@ -112,7 +116,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 f"(&(objectClass=inetOrgPerson)(uid={_escape_ldap_filter(uid)}))",
-                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "description", "telephoneNumber"],
             )
             if not conn.entries:
                 return None
@@ -120,7 +124,7 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def add_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title=""):
+    def add_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title="", description=""):
         """Aggiunge un nuovo contatto inetOrgPerson al server LDAP.
 
         Args:
@@ -154,6 +158,8 @@ class LDAPClient:
             attributes["givenName"] = given_name
         if title:
             attributes["title"] = title
+        if description:
+            attributes["description"] = description
         try:
             success = conn.add(dn, attributes=attributes)
             if not success:
@@ -161,7 +167,7 @@ class LDAPClient:
         finally:
             conn.unbind()
 
-    def update_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title=""):
+    def update_contact(self, uid, display_name, sn, telephone, telephone2="", given_name="", title="", description=""):
         """Aggiorna un contatto esistente.
 
         Modifica displayName, cn, sn, givenName, title e telephoneNumber.
@@ -209,6 +215,10 @@ class LDAPClient:
             # Usa MODIFY_REPLACE (2) con lista vuota invece di MODIFY_DELETE (1)
             # Questo non da errore se l'attributo non esiste
             changes["title"] = [(2, [])]
+        if description:
+            changes["description"] = [(2, [description])]
+        else:
+            changes["description"] = [(2, [])]
         try:
             success = conn.modify(dn, changes)
             if not success:
@@ -231,7 +241,7 @@ class LDAPClient:
             conn.search(
                 self.base_dn,
                 f"(&(objectClass=inetOrgPerson)(telephoneNumber={safe_number}))",
-                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "telephoneNumber"],
+                attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "description", "telephoneNumber"],
             )
             if not conn.entries:
                 return None
