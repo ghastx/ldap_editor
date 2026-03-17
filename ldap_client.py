@@ -95,7 +95,7 @@ class LDAPClient:
                 attributes=["uid", "cn", "displayName", "sn", "givenName", "title", "description", "telephoneNumber"],
             )
             contacts = [self._entry_to_dict(entry) for entry in conn.entries]
-            contacts.sort(key=lambda c: c["displayName"].lower())
+            contacts.sort(key=lambda c: c["sn"].lower())
             return contacts
         finally:
             conn.unbind()
