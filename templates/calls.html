@@ -1,17 +1,17 @@
 {#
-  calls.html - Registro chiamate (call log)
+calls.html - Registro chiamate (call log)
 
-  Mostra una tabella con lo storico delle chiamate in entrata e in uscita,
-  con filtri per data, direzione, numero e interno, e paginazione.
+Mostra una tabella con lo storico delle chiamate in entrata e in uscita,
+con filtri per data, direzione, numero e interno, e paginazione.
 
-  Variabili dal controller:
-    entries: lista di dizionari dalla tabella call_log
-    page: pagina corrente
-    total_pages: numero totale di pagine
-    total: numero totale di chiamate (con filtri applicati)
-    direction, number, ext, date_from, date_to: filtri attivi
+Variabili dal controller:
+entries: lista di dizionari dalla tabella call_log
+page: pagina corrente
+total_pages: numero totale di pagine
+total: numero totale di chiamate (con filtri applicati)
+direction, number, ext, date_from, date_to: filtri attivi
 
-  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 #}
 {% extends "base.html" %}
 
@@ -28,7 +28,8 @@
 </div>
 
 {# Filtri (collassabili) #}
-<form method="GET" action="{{ url_for('call_log_page') }}" class="call-log-filters {{ 'filters-open' if has_filters }}" id="filterForm">
+<form method="GET" action="{{ url_for('call_log_page') }}" class="call-log-filters {{ 'filters-open' if has_filters }}"
+    id="filterForm">
     <div class="filter-row">
         <label>
             Da
@@ -42,8 +43,8 @@
             Direzione
             <select name="direction">
                 <option value="">Tutte</option>
-                <option value="inbound" {{ 'selected' if direction == 'inbound' }}>Entrata</option>
-                <option value="outbound" {{ 'selected' if direction == 'outbound' }}>Uscita</option>
+                <option value="inbound" {{ 'selected' if direction=='inbound' }}>Entrata</option>
+                <option value="outbound" {{ 'selected' if direction=='outbound' }}>Uscita</option>
             </select>
         </label>
         <label>
@@ -57,7 +58,7 @@
         <div class="filter-actions">
             <button type="submit" class="btn btn-primary btn-small">Filtra</button>
             {% if has_filters %}
-                <a href="{{ url_for('call_log_page') }}" class="btn btn-secondary btn-small">Reset</a>
+            <a href="{{ url_for('call_log_page') }}" class="btn btn-secondary btn-small">Reset</a>
             {% endif %}
         </div>
     </div>
@@ -79,86 +80,91 @@
     <tbody>
         {% for entry in entries %}
         <tr>
-            <td class="nowrap" title="{{ entry.timestamp }}">{{ entry.timestamp[8:10] }}/{{ entry.timestamp[5:7] }} {{ entry.timestamp[11:16] }}</td>
+            <td class="nowrap" title="{{ entry.timestamp }}">{{ entry.timestamp[8:10] }}/{{ entry.timestamp[5:7] }} {{
+                entry.timestamp[11:16] }}</td>
             <td>
                 {% if entry.direction == 'inbound' %}
-                    <span class="btn btn-small btn-inbound" title="In entrata">
-                        <svg fill="currentColor">
-                            <use href="#icon-inbound"></use>
-                        </svg>
-                    </span>
+                <span class="btn btn-small btn-inbound" title="In entrata">
+                    <svg fill="currentColor">
+                        <use href="#icon-inbound"></use>
+                    </svg>
+                </span>
                 {% else %}
-                    <span class="btn btn-small btn-outbound" title="In uscita">
-                        <svg fill="currentColor">
-                            <use href="#icon-outbound"></use>
-                        </svg>
-                    </span>
+                <span class="btn btn-small btn-outbound" title="In uscita">
+                    <svg fill="currentColor">
+                        <use href="#icon-outbound"></use>
+                    </svg>
+                </span>
                 {% endif %}
             </td>
             <td>
                 {% if entry.contact_name %}
-                    <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')"
-                       class="phone-link" title="{{ entry.external_number }}">
-                        {{ entry.contact_name }}
-                    </a>
+                <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link"
+                    title="{{ entry.external_number }}">
+                    {{ entry.contact_name }}
+                </a> <span class="text-muted" title="{{ entry.description }}">
+                    <svg fill="currentColor">
+                        <use href="#icon-note"></use>
+                    </svg>
+                </span>
                 {% else %}
-                    <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
-                        {{ entry.external_number|format_phone }}
-                    </a>
+                <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
+                    {{ entry.external_number|format_phone }}
+                </a>
                 {% endif %}
             </td>
             <td>
                 {% if entry.internal_ext %}
-                    {% if entry.internal_name %}
-                        {{ entry.internal_name }}
-                    {% else %}
-                        {{ entry.internal_ext }}
-                    {% endif %}
+                {% if entry.internal_name %}
+                {{ entry.internal_name }}
                 {% else %}
-                    <span class="text-muted">-</span>
+                {{ entry.internal_ext }}
+                {% endif %}
+                {% else %}
+                <span class="text-muted">-</span>
                 {% endif %}
             </td>
             <td>
                 {% if entry.answered %}
-                    <span class="btn btn-small btn-answered" title="Risposta">
-                        <svg fill="currentColor">
-                            <use href="#icon-success"></use>
-                        </svg>
-                    </span>
+                <span class="btn btn-small btn-answered" title="Risposta">
+                    <svg fill="currentColor">
+                        <use href="#icon-success"></use>
+                    </svg>
+                </span>
                 {% else %}
-                    <span class="btn btn-small btn-missed" title="Non risposta">
-                        <svg fill="currentColor">
-                            <use href="#icon-fail"></use>
-                        </svg>
-                    </span>
+                <span class="btn btn-small btn-missed" title="Non risposta">
+                    <svg fill="currentColor">
+                        <use href="#icon-fail"></use>
+                    </svg>
+                </span>
                 {% endif %}
             </td>
             <td class="nowrap">
                 {% if entry.answered and entry.duration %}
-                    {% if entry.duration >= 60 %}
-                        {{ entry.duration // 60 }}m {{ entry.duration % 60 }}s
-                    {% else %}
-                        {{ entry.duration }}s
-                    {% endif %}
+                {% if entry.duration >= 60 %}
+                {{ entry.duration // 60 }}m {{ entry.duration % 60 }}s
                 {% else %}
-                    <span class="text-muted">-</span>
+                {{ entry.duration }}s
+                {% endif %}
+                {% else %}
+                <span class="text-muted">-</span>
                 {% endif %}
             </td>
             <td>
                 {% if entry.contact_uid %}
-                    <a href="{{ url_for('edit_contact', uid=entry.contact_uid) }}"
-                       class="btn btn-secondary btn-small" title="Modifica contatto">
-                        <svg fill="currentColor">
-                            <use href="#icon-pencil"></use>
-                        </svg>
-                    </a>
+                <a href="{{ url_for('edit_contact', uid=entry.contact_uid) }}" class="btn btn-secondary btn-small"
+                    title="Modifica contatto">
+                    <svg fill="currentColor">
+                        <use href="#icon-pencil"></use>
+                    </svg>
+                </a>
                 {% else %}
-                    <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
-                       class="btn btn-primary btn-small" title="Aggiungi alla rubrica">
-                        <svg fill="currentColor">
-                            <use href="#icon-plus"></use>
-                        </svg>
-                    </a>
+                <a href="{{ url_for('add_contact', telephone=entry.external_number) }}"
+                    class="btn btn-primary btn-small" title="Aggiungi alla rubrica">
+                    <svg fill="currentColor">
+                        <use href="#icon-plus"></use>
+                    </svg>
+                </a>
                 {% endif %}
             </td>
         </tr>
@@ -170,22 +176,26 @@
 {% if total_pages > 1 %}
 <div class="pagination">
     {% if page > 1 %}
-        <a href="{{ url_for('call_log_page', page=page - 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
-           class="btn btn-secondary btn-small">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
-                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
-            </svg>
-        </a>
+    <a href="{{ url_for('call_log_page', page=page - 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
+        class="btn btn-secondary btn-small">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left"
+            viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+                d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8" />
+        </svg>
+    </a>
     {% endif %}
     <span class="page-info">Pagina {{ page }} di {{ total_pages }}</span>
-    {% if page < total_pages %}
-        <a href="{{ url_for('call_log_page', page=page + 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
-           class="btn btn-secondary btn-small">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
-                <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"/>
-            </svg>
+    {% if page < total_pages %} <a
+        href="{{ url_for('call_log_page', page=page + 1, direction=direction, number=number, ext=ext, date_from=date_from, date_to=date_to) }}"
+        class="btn btn-secondary btn-small">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right"
+            viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+                d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8" />
+        </svg>
         </a>
-    {% endif %}
+        {% endif %}
 </div>
 {% endif %}
 
@@ -195,8 +205,8 @@
 {% endif %}
 
 <script>
-document.getElementById('filterToggle').addEventListener('click', function() {
-    document.getElementById('filterForm').classList.toggle('filters-open');
-});
+    document.getElementById('filterToggle').addEventListener('click', function () {
+        document.getElementById('filterForm').classList.toggle('filters-open');
+    });
 </script>
 {% endblock %}

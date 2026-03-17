@@ -1,19 +1,20 @@
 {#
-  base.html - Template base Jinja2
+base.html - Template base Jinja2
 
-  Layout comune a tutte le pagine: intestazione con navigazione,
-  selettore interno VoIP, messaggi flash (notifiche di successo/errore),
-  toast per click-to-dial e blocco content sovrascritto dai template figli.
+Layout comune a tutte le pagine: intestazione con navigazione,
+selettore interno VoIP, messaggi flash (notifiche di successo/errore),
+toast per click-to-dial e blocco content sovrascritto dai template figli.
 
-  Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
+Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
 
-  Favicon: "☎" (260e.svg) from Twitter Twemoji
-  - Author: Copyright 2020 Twitter, Inc and other contributors
-  - Source: https://github.com/twitter/twemoji
-  - License: CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Favicon: "☎" (260e.svg) from Twitter Twemoji
+- Author: Copyright 2020 Twitter, Inc and other contributors
+- Source: https://github.com/twitter/twemoji
+- License: CC-BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
 #}
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,30 +29,46 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
+
 <body class="{% block body_class %}{% endblock %}">
     <svg xmlns="http://www.w3.org/2000/svg" style="display:none;">
         <symbol id="icon-plus" viewBox="0 0 16 16">
-            <path d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z"/>
-            <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5"/>
+            <path
+                d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+            <path fill-rule="evenodd"
+                d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5" />
         </symbol>
         <symbol id="icon-pencil" viewBox="0 0 16 16">
-            <path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/>
-            <path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z"/>
+            <path
+                d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z" />
+            <path fill-rule="evenodd"
+                d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5z" />
         </symbol>
         <symbol id="icon-inbound" viewBox="0 0 16 16">
-            <path d="M15.854.146a.5.5 0 0 1 0 .708L11.707 5H14.5a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793L15.146.146a.5.5 0 0 1 .708 0m-12.2 1.182a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
+            <path
+                d="M15.854.146a.5.5 0 0 1 0 .708L11.707 5H14.5a.5.5 0 0 1 0 1h-4a.5.5 0 0 1-.5-.5v-4a.5.5 0 0 1 1 0v2.793L15.146.146a.5.5 0 0 1 .708 0m-12.2 1.182a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z" />
         </symbol>
         <symbol id="icon-outbound" viewBox="0 0 16 16">
-            <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877zM11 .5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V1.707l-4.146 4.147a.5.5 0 0 1-.708-.708L14.293 1H11.5a.5.5 0 0 1-.5-.5"/>
+            <path
+                d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877zM11 .5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V1.707l-4.146 4.147a.5.5 0 0 1-.708-.708L14.293 1H11.5a.5.5 0 0 1-.5-.5" />
         </symbol>
         <symbol id="icon-fail" viewBox="0 0 16 16">
-            <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708"/>
-        </symbol> 
+            <path
+                d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708" />
+        </symbol>
         <symbol id="icon-success" viewBox="0 0 16 16">
-            <path d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z"/>
+            <path
+                d="M10.97 4.97a.75.75 0 0 1 1.07 1.05l-3.99 4.99a.75.75 0 0 1-1.08.02L4.324 8.384a.75.75 0 1 1 1.06-1.06l2.094 2.093 3.473-4.425z" />
         </symbol>
         <symbol id="icon-cestino" viewBox="0 0 16 16">
-            <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+            <path
+                d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5" />
+        </symbol>
+        <symbol id="icon-note" viewBox="0 0 16 16">
+            <path
+                d="M14.5 3a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-13a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5zm-13-1A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h13a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2z" />
+            <path
+                d="M3 8.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5m0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1h-6a.5.5 0 0 1-.5-.5m0-5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5z" />
         </symbol>
     </svg>
     <div class="container">
@@ -66,13 +83,14 @@
                 <select id="extensionSelect" title="Interno VoIP">
                     <option value="">Seleziona interno...</option>
                     {% for ext in range(1000, 1007) %}
-                        <option value="{{ ext }}">Interno {{ ext }}</option>
+                    <option value="{{ ext }}">Interno {{ ext }}</option>
                     {% endfor %}
                 </select>
                 {# Indicatore chiamate attive con badge numerico #}
                 <div class="call-indicator" id="callIndicator" title="Chiamate attive">
                     <svg class="call-indicator-icon" viewBox="0 0 16 16" width="24" height="24" fill="currentColor">
-                        <path d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z"/>
+                        <path
+                            d="M3.654 1.328a.678.678 0 0 0-1.015-.063L1.605 2.3c-.483.484-.661 1.169-.45 1.77a17.6 17.6 0 0 0 4.168 6.608 17.6 17.6 0 0 0 6.608 4.168c.601.211 1.286.033 1.77-.45l1.034-1.034a.678.678 0 0 0-.063-1.015l-2.307-1.794a.68.68 0 0 0-.58-.122l-2.19.547a1.75 1.75 0 0 1-1.657-.459L5.482 8.062a1.75 1.75 0 0 1-.46-1.657l.548-2.19a.68.68 0 0 0-.122-.58zM1.884.511a1.745 1.745 0 0 1 2.612.163L6.29 2.98c.329.423.445.974.315 1.494l-.547 2.19a.68.68 0 0 0 .178.643l2.457 2.457a.68.68 0 0 0 .644.178l2.189-.547a1.75 1.75 0 0 1 1.494.315l2.306 1.794c.829.645.905 1.87.163 2.611l-1.034 1.034c-.74.74-1.846 1.065-2.877.702a18.6 18.6 0 0 1-7.01-4.42 18.6 18.6 0 0 1-4.42-7.009c-.362-1.03-.037-2.137.703-2.877z" />
                     </svg>
                     <span class="call-badge" id="callBadge" style="display:none">0</span>
                     {# Pannello dropdown con dettaglio chiamate attive #}
@@ -88,11 +106,11 @@
 
         {# Messaggi flash: mostrano notifiche di successo (success) o errore (danger) #}
         {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        {% endif %}
         {% endwith %}
 
         <main>
@@ -108,482 +126,483 @@
     <div id="callBannerContainer" class="call-banner-container"></div>
 
     <script>
-    // --- Registrazione Service Worker (PWA) ---
+        // --- Registrazione Service Worker (PWA) ---
 
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-            navigator.serviceWorker.register('/sw.js');
-        });
-    }
-
-    // --- Gestione interno VoIP (persistenza in localStorage) ---
-
-    (function() {
-        var sel = document.getElementById('extensionSelect');
-        // Ripristina l'interno salvato
-        var saved = localStorage.getItem('ucm_extension');
-        if (saved) sel.value = saved;
-
-        // Salva la selezione quando cambia
-        sel.addEventListener('change', function() {
-            localStorage.setItem('ucm_extension', this.value);
-        });
-    })();
-
-    // --- Toast notifications (click-to-dial feedback) ---
-
-    function showToast(message, type) {
-        var container = document.getElementById('toastContainer');
-        var toast = document.createElement('div');
-        toast.className = 'toast toast-' + (type || 'info');
-        toast.textContent = message;
-        container.appendChild(toast);
-        // Auto-rimozione dopo 4 secondi
-        setTimeout(function() {
-            toast.classList.add('toast-fade');
-            setTimeout(function() { toast.remove(); }, 300);
-        }, 4000);
-    }
-
-    // --- Click-to-dial ---
-
-    function clickToDial(number) {
-        var extension = document.getElementById('extensionSelect').value;
-        if (!extension) {
-            showToast('Seleziona prima il tuo interno', 'danger');
-            return;
-        }
-        showToast('Chiamata in corso verso ' + number + '...', 'info');
-        fetch('/api/call', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({extension: extension, number: number})
-        })
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
-            if (!data.ok) showToast(data.message, 'danger');
-        })
-        .catch(function() {
-            showToast('Errore di connessione al server.', 'danger');
-        });
-    }
-
-    // =====================================================================
-    // Monitor chiamate PBX (SSE + Notification API + banner in-page)
-    // =====================================================================
-
-    (function() {
-        // Stato locale delle chiamate attive (specchia il server)
-        var activeCalls = {};
-        // Cache nomi risolti per numero di telefono
-        var nameCache = {};
-
-        // --- Indicatore chiamate nella navbar ---
-
-        var callBadge = document.getElementById('callBadge');
-        var callIndicator = document.getElementById('callIndicator');
-        var callPanel = document.getElementById('callPanel');
-        var callPanelBody = document.getElementById('callPanelBody');
-
-        // Toggle pannello chiamate attive al click sull'indicatore
-        callIndicator.addEventListener('click', function(e) {
-            e.stopPropagation();
-            callPanel.classList.toggle('call-panel-open');
-        });
-        // Chiudi il pannello cliccando fuori
-        document.addEventListener('click', function() {
-            callPanel.classList.remove('call-panel-open');
-        });
-        callPanel.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
-
-        function updateBadge() {
-            var count = Object.keys(activeCalls).length;
-            if (count > 0) {
-                callBadge.textContent = count;
-                callBadge.style.display = '';
-                callIndicator.classList.add('call-indicator-active');
-            } else {
-                callBadge.style.display = 'none';
-                callIndicator.classList.remove('call-indicator-active');
-            }
-            updatePanel();
-        }
-
-        function updatePanel() {
-            var keys = Object.keys(activeCalls);
-            if (keys.length === 0) {
-                callPanelBody.innerHTML = '<div class="call-panel-empty">Nessuna chiamata</div>';
-                return;
-            }
-            var html = '';
-            keys.forEach(function(id) {
-                var c = activeCalls[id];
-                if (c.state === 'ringing') {
-                    var name = c.displayName || c.callername || c.callernum || '?';
-                    html += '<div class="call-panel-item call-panel-ringing">'
-                          + '<span class="call-panel-state">Squilla</span> '
-                          + escapeHtml(name)
-                          + ' &#8594; ' + escapeHtml(c.connectednum || '')
-                          + '</div>';
-                } else if (c.state === 'connected') {
-                    var left = c.display1 || c.name1 || c.callerid1 || '?';
-                    var right = c.display2 || c.name2 || c.callerid2 || '?';
-                    html += '<div class="call-panel-item call-panel-connected">'
-                          + '<span class="call-panel-state">In corso</span> '
-                          + escapeHtml(left)
-                          + ' &#8596; '
-                          + escapeHtml(right)
-                          + '</div>';
-                }
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/sw.js');
             });
-            callPanelBody.innerHTML = html;
         }
 
-        function escapeHtml(str) {
-            var div = document.createElement('div');
-            div.textContent = str;
-            return div.innerHTML;
+        // --- Gestione interno VoIP (persistenza in localStorage) ---
+
+        (function () {
+            var sel = document.getElementById('extensionSelect');
+            // Ripristina l'interno salvato
+            var saved = localStorage.getItem('ucm_extension');
+            if (saved) sel.value = saved;
+
+            // Salva la selezione quando cambia
+            sel.addEventListener('change', function () {
+                localStorage.setItem('ucm_extension', this.value);
+            });
+        })();
+
+        // --- Toast notifications (click-to-dial feedback) ---
+
+        function showToast(message, type) {
+            var container = document.getElementById('toastContainer');
+            var toast = document.createElement('div');
+            toast.className = 'toast toast-' + (type || 'info');
+            toast.textContent = message;
+            container.appendChild(toast);
+            // Auto-rimozione dopo 4 secondi
+            setTimeout(function () {
+                toast.classList.add('toast-fade');
+                setTimeout(function () { toast.remove(); }, 300);
+            }, 4000);
         }
 
-        // --- Banner chiamate (alto a destra) ---
+        // --- Click-to-dial ---
 
-        var bannerContainer = document.getElementById('callBannerContainer');
-
-        function showCallBanner(id, html, type) {
-            removeCallBanner(id, true);
-            var banner = document.createElement('div');
-            banner.className = 'call-banner call-banner-' + type;
-            banner.id = 'call-banner-' + id;
-            banner.innerHTML = html;
-            bannerContainer.appendChild(banner);
-        }
-
-        function removeCallBanner(id, immediate) {
-            var banner = document.getElementById('call-banner-' + id);
-            if (!banner) return;
-            if (immediate) {
-                banner.remove();
-            } else {
-                banner.classList.add('call-banner-fade');
-                setTimeout(function() { banner.remove(); }, 300);
-            }
-        }
-
-        // --- Notifiche browser ---
-
-        // Richiedi permesso Notification API (solo contesti sicuri: HTTPS o localhost)
-        var notificationsSupported = ('Notification' in window);
-        if (notificationsSupported && Notification.permission === 'default') {
-            // Ritarda la richiesta di 2 secondi per non essere troppo invadente
-            setTimeout(function() {
-                Notification.requestPermission();
-            }, 2000);
-        }
-
-        function showBrowserNotification(title, body) {
-            if (!notificationsSupported || Notification.permission !== 'granted') return;
-            try {
-                var n = new Notification(title, {
-                    body: body,
-                    icon: '{{ url_for("static", filename="favicon-32x32.png") }}',
-                    tag: 'pbx-call',
-                    renotify: true
-                });
-                // Chiudi automaticamente dopo 8 secondi
-                setTimeout(function() { n.close(); }, 8000);
-            } catch(e) {
-                // Notification API non disponibile (es. HTTP non-localhost)
-            }
-        }
-
-        // --- Lookup nome chiamante dalla rubrica LDAP ---
-
-        function lookupName(number, callback) {
-            if (!number) { callback(null); return; }
-            if (nameCache[number] !== undefined) {
-                callback(nameCache[number]);
+        function clickToDial(number) {
+            var extension = document.getElementById('extensionSelect').value;
+            if (!extension) {
+                showToast('Seleziona prima il tuo interno', 'danger');
                 return;
             }
-            fetch('/api/lookup/' + encodeURIComponent(number))
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
-                    nameCache[number] = data.name || null;
-                    callback(nameCache[number]);
+            showToast('Chiamata in corso verso ' + number + '...', 'info');
+            fetch('/api/call', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ extension: extension, number: number })
+            })
+                .then(function (resp) { return resp.json(); })
+                .then(function (data) {
+                    if (!data.ok) showToast(data.message, 'danger');
                 })
-                .catch(function() {
-                    callback(null);
+                .catch(function () {
+                    showToast('Errore di connessione al server.', 'danger');
                 });
         }
 
-        function resolveConnectedDisplay(uid) {
-            var call = activeCalls[uid];
-            if (!call || call.state !== "connected") return;
+        // =====================================================================
+        // Monitor chiamate PBX (SSE + Notification API + banner in-page)
+        // =====================================================================
 
-            lookupName(call.callerid1, function(name1) {
-                lookupName(call.callerid2, function(name2) {
-                    var current = activeCalls[uid];
-                    if (!current || current.state !== "connected") return;
+        (function () {
+            // Stato locale delle chiamate attive (specchia il server)
+            var activeCalls = {};
+            // Cache nomi risolti per numero di telefono
+            var nameCache = {};
 
-                    current.display1 = name1 || current.name1 || current.callerid1 || "?";
-                    current.display2 = name2 || current.name2 || current.callerid2 || "?";
-                    updatePanel();
-                });
+            // --- Indicatore chiamate nella navbar ---
+
+            var callBadge = document.getElementById('callBadge');
+            var callIndicator = document.getElementById('callIndicator');
+            var callPanel = document.getElementById('callPanel');
+            var callPanelBody = document.getElementById('callPanelBody');
+
+            // Toggle pannello chiamate attive al click sull'indicatore
+            callIndicator.addEventListener('click', function (e) {
+                e.stopPropagation();
+                callPanel.classList.toggle('call-panel-open');
             });
-        }
+            // Chiudi il pannello cliccando fuori
+            document.addEventListener('click', function () {
+                callPanel.classList.remove('call-panel-open');
+            });
+            callPanel.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
 
-        // --- Gestione eventi SSE ---
+            function updateBadge() {
+                var count = Object.keys(activeCalls).length;
+                if (count > 0) {
+                    callBadge.textContent = count;
+                    callBadge.style.display = '';
+                    callIndicator.classList.add('call-indicator-active');
+                } else {
+                    callBadge.style.display = 'none';
+                    callIndicator.classList.remove('call-indicator-active');
+                }
+                updatePanel();
+            }
 
-        function handleCallRing(data) {
-            var num = data.callernum || '';
-            var name = data.callername || '';
-            var dest = data.connectednum || '';
-            var uid = data.uniqueid || '';
+            function updatePanel() {
+                var keys = Object.keys(activeCalls);
+                if (keys.length === 0) {
+                    callPanelBody.innerHTML = '<div class="call-panel-empty">Nessuna chiamata</div>';
+                    return;
+                }
+                var html = '';
+                keys.forEach(function (id) {
+                    var c = activeCalls[id];
+                    if (c.state === 'ringing') {
+                        var name = c.displayName || c.callername || c.callernum || '?';
+                        html += '<div class="call-panel-item call-panel-ringing">'
+                            + '<span class="call-panel-state">Squilla</span> '
+                            + escapeHtml(name)
+                            + ' &#8594; ' + escapeHtml(c.connectednum || '')
+                            + '</div>';
+                    } else if (c.state === 'connected') {
+                        var left = c.display1 || c.name1 || c.callerid1 || '?';
+                        var right = c.display2 || c.name2 || c.callerid2 || '?';
+                        html += '<div class="call-panel-item call-panel-connected">'
+                            + '<span class="call-panel-state">In corso</span> '
+                            + escapeHtml(left)
+                            + ' &#8596; '
+                            + escapeHtml(right)
+                            + '</div>';
+                    }
+                });
+                callPanelBody.innerHTML = html;
+            }
 
-            // Salva nello stato locale
-            activeCalls[uid] = {
-                state: 'ringing',
-                callernum: num,
-                callername: name,
-                connectednum: dest
-            };
+            function escapeHtml(str) {
+                var div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
 
-            // Cerca il nome nella rubrica LDAP
-            lookupName(num, function(ldapName) {
-                var displayName = ldapName || name || num;
-                activeCalls[uid].displayName = displayName;
+            // --- Banner chiamate (alto a destra) ---
+
+            var bannerContainer = document.getElementById('callBannerContainer');
+
+            function showCallBanner(id, html, type) {
+                removeCallBanner(id, true);
+                var banner = document.createElement('div');
+                banner.className = 'call-banner call-banner-' + type;
+                banner.id = 'call-banner-' + id;
+                banner.innerHTML = html;
+                bannerContainer.appendChild(banner);
+            }
+
+            function removeCallBanner(id, immediate) {
+                var banner = document.getElementById('call-banner-' + id);
+                if (!banner) return;
+                if (immediate) {
+                    banner.remove();
+                } else {
+                    banner.classList.add('call-banner-fade');
+                    setTimeout(function () { banner.remove(); }, 300);
+                }
+            }
+
+            // --- Notifiche browser ---
+
+            // Richiedi permesso Notification API (solo contesti sicuri: HTTPS o localhost)
+            var notificationsSupported = ('Notification' in window);
+            if (notificationsSupported && Notification.permission === 'default') {
+                // Ritarda la richiesta di 2 secondi per non essere troppo invadente
+                setTimeout(function () {
+                    Notification.requestPermission();
+                }, 2000);
+            }
+
+            function showBrowserNotification(title, body) {
+                if (!notificationsSupported || Notification.permission !== 'granted') return;
+                try {
+                    var n = new Notification(title, {
+                        body: body,
+                        icon: '{{ url_for("static", filename="favicon-32x32.png") }}',
+                        tag: 'pbx-call',
+                        renotify: true
+                    });
+                    // Chiudi automaticamente dopo 8 secondi
+                    setTimeout(function () { n.close(); }, 8000);
+                } catch (e) {
+                    // Notification API non disponibile (es. HTTP non-localhost)
+                }
+            }
+
+            // --- Lookup nome chiamante dalla rubrica LDAP ---
+
+            function lookupName(number, callback) {
+                if (!number) { callback(null); return; }
+                if (nameCache[number] !== undefined) {
+                    callback(nameCache[number]);
+                    return;
+                }
+                fetch('/api/lookup/' + encodeURIComponent(number))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        nameCache[number] = data.name || null;
+                        callback(nameCache[number]);
+                    })
+                    .catch(function () {
+                        callback(null);
+                    });
+            }
+
+            function resolveConnectedDisplay(uid) {
+                var call = activeCalls[uid];
+                if (!call || call.state !== "connected") return;
+
+                lookupName(call.callerid1, function (name1) {
+                    lookupName(call.callerid2, function (name2) {
+                        var current = activeCalls[uid];
+                        if (!current || current.state !== "connected") return;
+
+                        current.display1 = name1 || current.name1 || current.callerid1 || "?";
+                        current.display2 = name2 || current.name2 || current.callerid2 || "?";
+                        updatePanel();
+                    });
+                });
+            }
+
+            // --- Gestione eventi SSE ---
+
+            function handleCallRing(data) {
+                var num = data.callernum || '';
+                var name = data.callername || '';
+                var dest = data.connectednum || '';
+                var uid = data.uniqueid || '';
+
+                // Salva nello stato locale
+                activeCalls[uid] = {
+                    state: 'ringing',
+                    callernum: num,
+                    callername: name,
+                    connectednum: dest
+                };
+
+                // Cerca il nome nella rubrica LDAP
+                lookupName(num, function (ldapName) {
+                    var displayName = ldapName || name || num;
+                    activeCalls[uid].displayName = displayName;
+                    updateBadge();
+
+                    // Banner in-page
+                    showCallBanner(uid,
+                        '<strong>Chiamata in arrivo</strong><br>'
+                        + 'Da: ' + escapeHtml(displayName)
+                        + (displayName !== num && num ? ' (' + escapeHtml(num) + ')' : '')
+                        + ' &#8594; ' + escapeHtml(dest),
+                        'ringing'
+                    );
+
+                    // Notifica browser
+                    var body = 'Da: ' + displayName;
+                    if (displayName !== num && num) body += ' (' + num + ')';
+                    showBrowserNotification('Chiamata in arrivo', body);
+                });
+            }
+
+            function handleCallConnect(data) {
+                var uid = data.uniqueid || '';
+                activeCalls[uid] = {
+                    state: 'connected',
+                    callerid1: data.callerid1 || '',
+                    callerid2: data.callerid2 || '',
+                    name1: data.name1 || '',
+                    name2: data.name2 || ''
+                };
                 updateBadge();
-
-                // Banner in-page
-                showCallBanner(uid,
-                    '<strong>Chiamata in arrivo</strong><br>'
-                    + 'Da: ' + escapeHtml(displayName)
-                    + (displayName !== num && num ? ' (' + escapeHtml(num) + ')' : '')
-                    + ' &#8594; ' + escapeHtml(dest),
-                    'ringing'
-                );
-
-                // Notifica browser
-                var body = 'Da: ' + displayName;
-                if (displayName !== num && num) body += ' (' + num + ')';
-                showBrowserNotification('Chiamata in arrivo', body);
-            });
-        }
-
-        function handleCallConnect(data) {
-            var uid = data.uniqueid || '';
-            activeCalls[uid] = {
-                state: 'connected',
-                callerid1: data.callerid1 || '',
-                callerid2: data.callerid2 || '',
-                name1: data.name1 || '',
-                name2: data.name2 || ''
-            };
-            updateBadge();
-            resolveConnectedDisplay(uid);
-            // Aggiorna solo lo stato nel pannello, nessun banner visibile
-            removeCallBanner(uid, true);
-        }
-
-        function handleCallHangup(data) {
-            var uid = data.uniqueid || '';
-            delete activeCalls[uid];
-            updateBadge();
-            // Rimuovi il banner con dissolvenza dopo 3 secondi
-            setTimeout(function() {
-                removeCallBanner(uid, false);
-            }, 3000);
-        }
-
-        function handleExtensionStatus(data) {
-            // Aggiornamento silenzioso, loggato solo in console
-        }
-
-        // --- Connessione EventSource con riconnessione robusta ---
-        //
-        // Gestisce: resume da sleep, Firefox stuck CONNECTING,
-        // tab nascosta, perdita rete, chiusura server.
-        // Mantiene sempre una sola istanza attiva.
-
-        var evtSource = null;
-        var _sseLastEvent = Date.now();   // ultimo evento o keepalive ricevuto
-        var _sseRetries = 0;              // contatore tentativi consecutivi
-        var _sseReconnectTimer = null;    // timer di riconnessione pendente
-        var _sseMaxRetries = 10;          // massimo tentativi prima di rallentare
-        var _sseConnecting = false;       // previene chiamate concorrenti
-
-        // Calcola il ritardo con backoff esponenziale: 1s, 2s, 4s, ... max 30s
-        function _sseBackoff() {
-            var delay = Math.min(1000 * Math.pow(2, _sseRetries), 30000);
-            return delay;
-        }
-
-        // Chiude la connessione corrente in modo sicuro
-        function _sseClose() {
-            if (_sseReconnectTimer) {
-                clearTimeout(_sseReconnectTimer);
-                _sseReconnectTimer = null;
+                resolveConnectedDisplay(uid);
+                // Aggiorna solo lo stato nel pannello, nessun banner visibile
+                removeCallBanner(uid, true);
             }
-            if (evtSource) {
-                evtSource.onopen = null;
-                evtSource.onerror = null;
-                evtSource.onmessage = null;
-                try { evtSource.close(); } catch(e) {}
-                evtSource = null;
+
+            function handleCallHangup(data) {
+                var uid = data.uniqueid || '';
+                delete activeCalls[uid];
+                updateBadge();
+                // Rimuovi il banner con dissolvenza dopo 3 secondi
+                setTimeout(function () {
+                    removeCallBanner(uid, false);
+                }, 3000);
             }
-        }
 
-        // Pianifica una riconnessione con backoff, evitando duplicati
-        function _sseScheduleReconnect() {
-            if (_sseReconnectTimer) return;
-            var delay = _sseBackoff();
-            _sseRetries = Math.min(_sseRetries + 1, _sseMaxRetries);
-            _sseReconnectTimer = setTimeout(function() {
-                _sseReconnectTimer = null;
-                connectSSE();
-            }, delay);
-        }
+            function handleExtensionStatus(data) {
+                // Aggiornamento silenzioso, loggato solo in console
+            }
 
-        function connectSSE() {
-            // Evita connessioni concorrenti
-            if (_sseConnecting) return;
-            _sseConnecting = true;
+            // --- Connessione EventSource con riconnessione robusta ---
+            //
+            // Gestisce: resume da sleep, Firefox stuck CONNECTING,
+            // tab nascosta, perdita rete, chiusura server.
+            // Mantiene sempre una sola istanza attiva.
 
-            // Chiudi sempre la connessione precedente
-            _sseClose();
+            var evtSource = null;
+            var _sseLastEvent = Date.now();   // ultimo evento o keepalive ricevuto
+            var _sseRetries = 0;              // contatore tentativi consecutivi
+            var _sseReconnectTimer = null;    // timer di riconnessione pendente
+            var _sseMaxRetries = 10;          // massimo tentativi prima di rallentare
+            var _sseConnecting = false;       // previene chiamate concorrenti
 
-            evtSource = new EventSource('/api/events');
+            // Calcola il ritardo con backoff esponenziale: 1s, 2s, 4s, ... max 30s
+            function _sseBackoff() {
+                var delay = Math.min(1000 * Math.pow(2, _sseRetries), 30000);
+                return delay;
+            }
 
-            evtSource.onopen = function() {
-                // Connessione stabilita: reset contatori
-                _sseRetries = 0;
-                _sseLastEvent = Date.now();
+            // Chiude la connessione corrente in modo sicuro
+            function _sseClose() {
+                if (_sseReconnectTimer) {
+                    clearTimeout(_sseReconnectTimer);
+                    _sseReconnectTimer = null;
+                }
+                if (evtSource) {
+                    evtSource.onopen = null;
+                    evtSource.onerror = null;
+                    evtSource.onmessage = null;
+                    try { evtSource.close(); } catch (e) { }
+                    evtSource = null;
+                }
+            }
+
+            // Pianifica una riconnessione con backoff, evitando duplicati
+            function _sseScheduleReconnect() {
+                if (_sseReconnectTimer) return;
+                var delay = _sseBackoff();
+                _sseRetries = Math.min(_sseRetries + 1, _sseMaxRetries);
+                _sseReconnectTimer = setTimeout(function () {
+                    _sseReconnectTimer = null;
+                    connectSSE();
+                }, delay);
+            }
+
+            function connectSSE() {
+                // Evita connessioni concorrenti
+                if (_sseConnecting) return;
+                _sseConnecting = true;
+
+                // Chiudi sempre la connessione precedente
+                _sseClose();
+
+                evtSource = new EventSource('/api/events');
+
+                evtSource.onopen = function () {
+                    // Connessione stabilita: reset contatori
+                    _sseRetries = 0;
+                    _sseLastEvent = Date.now();
+                    _sseConnecting = false;
+                };
+
+                evtSource.onerror = function () {
+                    _sseConnecting = false;
+                    if (!evtSource) return;
+
+                    if (evtSource.readyState === EventSource.CLOSED) {
+                        // Il server ha chiuso la connessione, EventSource non ritenta
+                        _sseClose();
+                        _sseScheduleReconnect();
+                    }
+                    // Se readyState === CONNECTING, EventSource tenta da solo,
+                    // ma il watchdog interverra' se resta bloccato (Firefox bug)
+                };
+
+                evtSource.addEventListener('call_ring', function (e) {
+                    _sseLastEvent = Date.now();
+                    handleCallRing(JSON.parse(e.data));
+                });
+                evtSource.addEventListener('call_connect', function (e) {
+                    _sseLastEvent = Date.now();
+                    handleCallConnect(JSON.parse(e.data));
+                });
+                evtSource.addEventListener('call_hangup', function (e) {
+                    _sseLastEvent = Date.now();
+                    handleCallHangup(JSON.parse(e.data));
+                });
+                evtSource.addEventListener('extension_status', function (e) {
+                    _sseLastEvent = Date.now();
+                    handleExtensionStatus(JSON.parse(e.data));
+                });
+
+                // Cattura anche i keepalive (commenti SSE) tramite l'handler generico
+                evtSource.onmessage = function () {
+                    _sseLastEvent = Date.now();
+                };
+
                 _sseConnecting = false;
-            };
+            }
 
-            evtSource.onerror = function() {
-                _sseConnecting = false;
+            // --- Watchdog: rileva sleep/freeze e connessioni bloccate ---
+            //
+            // Ogni 10s controlla:
+            // 1) Gap temporale > 45s → il PC era in sospensione
+            // 2) readyState === CONNECTING da troppo tempo → Firefox bug
+            // 3) Nessun evento/keepalive da > 90s con connessione OPEN →
+            //    connessione zombie (il server invia keepalive ogni 30s)
+            var _sseWatchdogTime = Date.now();
+            setInterval(function () {
+                var now = Date.now();
+                var elapsed = now - _sseWatchdogTime;
+                _sseWatchdogTime = now;
+
                 if (!evtSource) return;
 
-                if (evtSource.readyState === EventSource.CLOSED) {
-                    // Il server ha chiuso la connessione, EventSource non ritenta
+                // Il PC era in sospensione (il timer da 10s ha accumulato > 45s)
+                if (elapsed > 45000) {
                     _sseClose();
-                    _sseScheduleReconnect();
+                    connectSSE();
+                    return;
                 }
-                // Se readyState === CONNECTING, EventSource tenta da solo,
-                // ma il watchdog interverra' se resta bloccato (Firefox bug)
-            };
 
-            evtSource.addEventListener('call_ring', function(e) {
-                _sseLastEvent = Date.now();
-                handleCallRing(JSON.parse(e.data));
+                var state = evtSource.readyState;
+
+                // Firefox: bloccato in CONNECTING per piu' di 15s senza passare a OPEN
+                if (state === EventSource.CONNECTING && (now - _sseLastEvent) > 15000) {
+                    _sseClose();
+                    connectSSE();
+                    return;
+                }
+
+                // Connessione zombie: OPEN ma nessun dato da > 90s
+                // (il server manda keepalive ogni 30s, quindi 90s = 3 keepalive mancati)
+                if (state === EventSource.OPEN && (now - _sseLastEvent) > 90000) {
+                    _sseClose();
+                    connectSSE();
+                    return;
+                }
+            }, 10000);
+
+            // --- Online: il browser ha ripristinato la connessione di rete ---
+            window.addEventListener('online', function () {
+                if (!evtSource || evtSource.readyState !== EventSource.OPEN) {
+                    _sseClose();
+                    // Piccolo ritardo per permettere alla rete di stabilizzarsi
+                    setTimeout(connectSSE, 1000);
+                }
             });
-            evtSource.addEventListener('call_connect', function(e) {
-                _sseLastEvent = Date.now();
-                handleCallConnect(JSON.parse(e.data));
+
+            // --- Visibilitychange: la pagina torna in primo piano ---
+            // Copre i casi in cui il watchdog non ha ancora girato dopo il resume
+            document.addEventListener('visibilitychange', function () {
+                if (document.hidden) return;
+                if (!evtSource) {
+                    connectSSE();
+                    return;
+                }
+
+                var state = evtSource.readyState;
+                var sinceLastEvent = Date.now() - _sseLastEvent;
+
+                // Qualsiasi stato non-OPEN, oppure OPEN ma silenzioso da troppo
+                if (state !== EventSource.OPEN || sinceLastEvent > 45000) {
+                    _sseClose();
+                    connectSSE();
+                }
             });
-            evtSource.addEventListener('call_hangup', function(e) {
-                _sseLastEvent = Date.now();
-                handleCallHangup(JSON.parse(e.data));
-            });
-            evtSource.addEventListener('extension_status', function(e) {
-                _sseLastEvent = Date.now();
-                handleExtensionStatus(JSON.parse(e.data));
-            });
 
-            // Cattura anche i keepalive (commenti SSE) tramite l'handler generico
-            evtSource.onmessage = function() {
-                _sseLastEvent = Date.now();
-            };
-
-            _sseConnecting = false;
-        }
-
-        // --- Watchdog: rileva sleep/freeze e connessioni bloccate ---
-        //
-        // Ogni 10s controlla:
-        // 1) Gap temporale > 45s → il PC era in sospensione
-        // 2) readyState === CONNECTING da troppo tempo → Firefox bug
-        // 3) Nessun evento/keepalive da > 90s con connessione OPEN →
-        //    connessione zombie (il server invia keepalive ogni 30s)
-        var _sseWatchdogTime = Date.now();
-        setInterval(function() {
-            var now = Date.now();
-            var elapsed = now - _sseWatchdogTime;
-            _sseWatchdogTime = now;
-
-            if (!evtSource) return;
-
-            // Il PC era in sospensione (il timer da 10s ha accumulato > 45s)
-            if (elapsed > 45000) {
-                _sseClose();
-                connectSSE();
-                return;
-            }
-
-            var state = evtSource.readyState;
-
-            // Firefox: bloccato in CONNECTING per piu' di 15s senza passare a OPEN
-            if (state === EventSource.CONNECTING && (now - _sseLastEvent) > 15000) {
-                _sseClose();
-                connectSSE();
-                return;
-            }
-
-            // Connessione zombie: OPEN ma nessun dato da > 90s
-            // (il server manda keepalive ogni 30s, quindi 90s = 3 keepalive mancati)
-            if (state === EventSource.OPEN && (now - _sseLastEvent) > 90000) {
-                _sseClose();
-                connectSSE();
-                return;
-            }
-        }, 10000);
-
-        // --- Online: il browser ha ripristinato la connessione di rete ---
-        window.addEventListener('online', function() {
-            if (!evtSource || evtSource.readyState !== EventSource.OPEN) {
-                _sseClose();
-                // Piccolo ritardo per permettere alla rete di stabilizzarsi
-                setTimeout(connectSSE, 1000);
-            }
-        });
-
-        // --- Visibilitychange: la pagina torna in primo piano ---
-        // Copre i casi in cui il watchdog non ha ancora girato dopo il resume
-        document.addEventListener('visibilitychange', function() {
-            if (document.hidden) return;
-            if (!evtSource) {
-                connectSSE();
-                return;
-            }
-
-            var state = evtSource.readyState;
-            var sinceLastEvent = Date.now() - _sseLastEvent;
-
-            // Qualsiasi stato non-OPEN, oppure OPEN ma silenzioso da troppo
-            if (state !== EventSource.OPEN || sinceLastEvent > 45000) {
-                _sseClose();
-                connectSSE();
-            }
-        });
-
-        // --- Avvio: carica stato iniziale e connetti ---
-        fetch('/api/calls')
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                (data.calls || []).forEach(function(c) {
-                    if (!c.uniqueid) return;
-                    activeCalls[c.uniqueid] = c;
-                    if (c.state === "connected") resolveConnectedDisplay(c.uniqueid);
+            // --- Avvio: carica stato iniziale e connetti ---
+            fetch('/api/calls')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    (data.calls || []).forEach(function (c) {
+                        if (!c.uniqueid) return;
+                        activeCalls[c.uniqueid] = c;
+                        if (c.state === "connected") resolveConnectedDisplay(c.uniqueid);
+                    });
+                    updateBadge();
+                })
+                .catch(function () { })
+                .finally(function () {
+                    connectSSE();
                 });
-                updateBadge();
-            })
-            .catch(function() {})
-            .finally(function() {
-                connectSSE();
-            });
-    })();
+        })();
     </script>
 </body>
+
 </html>
