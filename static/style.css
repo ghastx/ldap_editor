@@ -149,7 +149,8 @@ nav a:hover {
 .btn svg {
     width: 20px;
     height: 20px;
-    display: block; /* elimina spazio baseline */
+    display: block;
+    /* elimina spazio baseline */
 }
 
 /* Azione principale (aggiungi, salva) */
@@ -201,7 +202,8 @@ table {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-th, td {
+th,
+td {
     text-align: left;
     padding: 12px 16px;
 }
@@ -477,8 +479,15 @@ h2 {
 }
 
 @keyframes toast-in {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* ==========================================================================
@@ -666,13 +675,27 @@ h2 {
 }
 
 @keyframes call-banner-in {
-    from { opacity: 0; transform: translateX(20px); }
-    to   { opacity: 1; transform: translateX(0); }
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 @keyframes call-banner-pulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.8; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
 }
 
 /* ==========================================================================
@@ -791,4 +814,39 @@ h2 {
 .page-info {
     font-size: 14px;
     color: #777;
+}
+
+/* tooltip note in lista chiamate */
+
+.icon-note-wrap {
+    position: relative;
+    vertical-align: middle;
+    margin-left: 4px;
+    cursor: help;
+}
+
+.icon-note {
+    color: var(--text-muted);
+    vertical-align: middle;
+}
+
+.icon-note-wrap::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background: var(--bg-dark, #333);
+    color: #fff;
+    font-size: 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s;
+}
+
+.icon-note-wrap:hover::after {
+    opacity: 1;
 }

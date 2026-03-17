@@ -104,8 +104,8 @@ Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
                     {{ entry.contact_name }}
                 </a>
                 {% if entry.contact_description %}
-                <span class="btn btn-small" title="{{ entry.contact_description }}">
-                    <svg fill="currentColor">
+                <span class="icon-note-wrap" data-tip="{{ entry.contact_description }}">
+                    <svg fill="currentColor" class="icon-note">
                         <use href="#icon-note"></use>
                     </svg>
                 </span>
