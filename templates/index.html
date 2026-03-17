@@ -39,7 +39,7 @@
     <tbody>
         {% for contact in contacts %}
         <tr>
-            <td>{{ contact.displayName }}</td>
+            <td>{{ contact.displayName }} {% if contact.description %}<span class="note-link" title="{{ contact.description }}">note</span>{% endif %}</td>
             {# Numeri cliccabili: avviano click-to-dial tramite il centralino UCM #}
             <td {% if contact.telephoneNumber2 %} class="phone-doppio"{% endif %}>
                 <a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber }}'); return false;">{{ contact.telephoneNumber|format_phone }}</a>
