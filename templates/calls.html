@@ -104,7 +104,7 @@ Rubrica LDAP - Copyright (C) 2024 - GPL-2.0-or-later
                     {{ entry.contact_name }}
                 </a>
                 {% if entry.contact_description %}
-                <span class="note-link" data-tip="{{ entry.contact_description }}">note</span>
+                <span class="note-link" title="{{ entry.contact_description }}">note</span>
                 {% endif %}
                 {% else %}
                 <a href="javascript:void(0)" onclick="clickToDial('{{ entry.external_number }}')" class="phone-link">
