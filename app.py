@@ -439,16 +439,19 @@ def call_log_page():
                     phone_to_contact[tel] = {
                         "displayName": c["displayName"],
                         "uid": c["uid"],
+                        "description": c.get("description", ""),
                     }
         for entry in entries:
             norm = normalize_number(entry.get("external_number", ""))
             match = phone_to_contact.get(norm) if norm else None
             entry["contact_name"] = match["displayName"] if match else ""
             entry["contact_uid"] = match["uid"] if match else ""
+            entry["contact_description"] = match["description"] if match else ""
     except LDAPException:
         for entry in entries:
             entry["contact_name"] = ""
             entry["contact_uid"] = ""
+            entry["contact_description"] = ""
 
     return render_template(
         "calls.html",
