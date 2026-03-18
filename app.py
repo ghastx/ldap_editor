@@ -189,7 +189,13 @@ def index():
             or q in c["telephoneNumber2"]
         ]
 
-    return render_template("index.html", contacts=contacts, search=search)
+    # Precalcola le iniziali presenti per la barra alfabetica laterale
+    letters = sorted({
+        c["sn"][0].upper() if c.get("sn") and c["sn"][0].isalpha() else "#"
+        for c in contacts
+    })
+
+    return render_template("index.html", contacts=contacts, search=search, letters=letters)
 
 
 @app.route("/add", methods=["GET", "POST"])

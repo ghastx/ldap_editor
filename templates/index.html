@@ -27,46 +27,78 @@
 </div>
 
 {% if contacts %}
-{# Tabella contatti: nome, telefono (cliccabile come link tel:) e azioni #}
-<table>
-    <thead>
-        <tr>
-            <th>Nome</th>
-            <th>Telefono</th>
-            <th>Azioni</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for contact in contacts %}
-        <tr>
-            <td>{{ contact.displayName }} {% if contact.description %}<span class="note-link" title="{{ contact.description }}">note</span>{% endif %}</td>
-            {# Numeri cliccabili: avviano click-to-dial tramite il centralino UCM #}
-            <td {% if contact.telephoneNumber2 %} class="phone-doppio"{% endif %}>
-                <a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber }}'); return false;">{{ contact.telephoneNumber|format_phone }}</a>
-                {% if contact.telephoneNumber2 %}
-                    <br><a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber2 }}'); return false;">{{ contact.telephoneNumber2|format_phone }}</a>
-                {% endif %}
-            </td>
-            <td class="actions">
-                <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-secondary btn-small" title="Modifica contatto">
-                    <svg fill="currentColor">
-                        <use href="#icon-pencil"></use>
-                    </svg>
-                </a>
-                {# Il pulsante Elimina apre il modale di conferma invece di eliminare direttamente #}
-                <button type="button" class="btn btn-small btn-danger" title="Cancella contatto"
-                        onclick="showDeleteModal('{{ contact.displayName }}', '{{ url_for('delete_contact', uid=contact.uid) }}')">
-                    <svg fill="currentColor">
-                        <use href="#icon-cestino"></use>
-                    </svg>
-                </button>
-            </td>
-        </tr>
+{# Layout a due colonne: barra alfabetica + tabella contatti #}
+{% set ns = namespace(letter='') %}
+<div class="contacts-layout">
+    {# Barra alfabetica laterale sticky per navigazione rapida per iniziale cognome #}
+    <nav class="alpha-sidebar">
+        {% for ch in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
+            {% if ch in letters %}
+                <a href="#letter-{{ ch }}">{{ ch }}</a>
+            {% else %}
+                <span class="disabled">{{ ch }}</span>
+            {% endif %}
         {% endfor %}
-    </tbody>
-</table>
-{# Conteggio contatti con accordo singolare/plurale #}
-<p class="count">{{ contacts|length }} contatt{{ 'o' if contacts|length == 1 else 'i' }}</p>
+        {% if '#' in letters %}
+            <a href="#letter-other">#</a>
+        {% else %}
+            <span class="disabled">#</span>
+        {% endif %}
+    </nav>
+    <div class="contacts-table-wrap">
+        {# Tabella contatti: nome, telefono (cliccabile come link tel:) e azioni #}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Telefono</th>
+                    <th>Azioni</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                {# Separatore di lettera: inserito prima del primo contatto di ogni nuova iniziale #}
+                {% set first = contact.sn[0]|upper if contact.sn and contact.sn[0].isalpha() else '#' %}
+                {% if first != ns.letter %}
+                    {% set ns.letter = first %}
+                    <tr class="letter-separator">
+                        <td colspan="3">
+                            <div id="letter-{{ first if first != '#' else 'other' }}" class="anchor-offset"></div>
+                            {{ first }}
+                        </td>
+                    </tr>
+                {% endif %}
+                <tr>
+                    <td>{{ contact.displayName }} {% if contact.description %}<span class="note-link" title="{{ contact.description }}">note</span>{% endif %}</td>
+                    {# Numeri cliccabili: avviano click-to-dial tramite il centralino UCM #}
+                    <td {% if contact.telephoneNumber2 %} class="phone-doppio"{% endif %}>
+                        <a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber }}'); return false;">{{ contact.telephoneNumber|format_phone }}</a>
+                        {% if contact.telephoneNumber2 %}
+                            <br><a href="#" class="phone-link" onclick="clickToDial('{{ contact.telephoneNumber2 }}'); return false;">{{ contact.telephoneNumber2|format_phone }}</a>
+                        {% endif %}
+                    </td>
+                    <td class="actions">
+                        <a href="{{ url_for('edit_contact', uid=contact.uid) }}" class="btn btn-secondary btn-small" title="Modifica contatto">
+                            <svg fill="currentColor">
+                                <use href="#icon-pencil"></use>
+                            </svg>
+                        </a>
+                        {# Il pulsante Elimina apre il modale di conferma invece di eliminare direttamente #}
+                        <button type="button" class="btn btn-small btn-danger" title="Cancella contatto"
+                                onclick="showDeleteModal('{{ contact.displayName }}', '{{ url_for('delete_contact', uid=contact.uid) }}')">
+                            <svg fill="currentColor">
+                                <use href="#icon-cestino"></use>
+                            </svg>
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {# Conteggio contatti con accordo singolare/plurale #}
+        <p class="count">{{ contacts|length }} contatt{{ 'o' if contacts|length == 1 else 'i' }}</p>
+    </div>
+</div>
 {% else %}
 <p class="empty">Nessun contatto trovato.</p>
 {% endif %}

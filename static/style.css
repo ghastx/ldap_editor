@@ -23,6 +23,10 @@
    1. Reset e stili di base
    ========================================================================== */
 
+:root {
+    --sticky-offset: 80px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -823,4 +827,71 @@ h2 {
     text-decoration: underline;
     cursor: help;
     margin-left: 8px;
+}
+
+/* ==========================================================================
+   14. Barra alfabetica laterale e layout contatti
+   ========================================================================== */
+
+.contacts-layout {
+    display: flex;
+    align-items: flex-start;
+}
+
+.alpha-sidebar {
+    position: sticky;
+    top: var(--sticky-offset);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 28px;
+    margin-right: 12px;
+}
+
+.alpha-sidebar a,
+.alpha-sidebar .disabled {
+    display: block;
+    padding: 2px 0;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    text-decoration: none;
+    line-height: 1.4;
+}
+
+.alpha-sidebar a {
+    color: #2c3e50;
+}
+
+.alpha-sidebar a:hover {
+    color: #3498db;
+}
+
+.alpha-sidebar .disabled {
+    color: #ccc;
+    cursor: default;
+}
+
+.contacts-table-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.letter-separator td {
+    background: #e8ecf1 !important;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 6px 16px;
+    position: relative;
+}
+
+.letter-separator:hover td {
+    background: #e8ecf1 !important;
+}
+
+.anchor-offset {
+    position: absolute;
+    top: 0;
+    scroll-margin-top: var(--sticky-offset);
 }
