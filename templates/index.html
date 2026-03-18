@@ -35,14 +35,10 @@
         {% for ch in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
             {% if ch in letters %}
                 <a href="#letter-{{ ch }}">{{ ch }}</a>
-            {% else %}
-                <span class="disabled">{{ ch }}</span>
             {% endif %}
         {% endfor %}
         {% if '#' in letters %}
             <a href="#letter-other">#</a>
-        {% else %}
-            <span class="disabled">#</span>
         {% endif %}
     </nav>
     <div class="contacts-table-wrap">
