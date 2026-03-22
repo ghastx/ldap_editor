@@ -234,19 +234,32 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
                     var c = activeCalls[id];
                     if (c.state === 'ringing') {
                         var name = c.displayName || c.callername || c.callernum || '?';
+                        var number = c.callernum || '';
+                        var note = c.contactDescription || '';
                         html += '<div class="call-panel-item call-panel-ringing">'
-                            + '<span class="call-panel-state">Squilla</span> '
-                            + escapeHtml(name)
-                            + ' &#8594; ' + escapeHtml(c.connectednum || '')
+                            + '<div class="call-panel-row">'
+                            + '<span class="call-panel-state">Squilla</span>'
+                            + '<strong>' + escapeHtml(name) + '</strong>'
+                            + '</div>'
+                            + '<div class="call-panel-route">'
+                            + (number && name !== number ? escapeHtml(number) + ' &#8594; ' : '')
+                            + escapeHtml(c.connectednum || '')
+                            + '</div>'
+                            + (note ? '<div class="call-panel-note">Note: ' + escapeHtml(note) + '</div>' : '')
                             + '</div>';
                     } else if (c.state === 'connected') {
                         var left = c.display1 || c.name1 || c.callerid1 || '?';
                         var right = c.display2 || c.name2 || c.callerid2 || '?';
                         html += '<div class="call-panel-item call-panel-connected">'
-                            + '<span class="call-panel-state">In corso</span> '
+                            + '<div class="call-panel-row">'
+                            + '<span class="call-panel-state">In corso</span>'
+                            + '<strong>' + escapeHtml(left) + '</strong>'
+                            + '</div>'
+                            + '<div class="call-panel-route">'
                             + escapeHtml(left)
                             + ' &#8596; '
                             + escapeHtml(right)
+                            + '</div>'
                             + '</div>';
                     }
                 });
@@ -255,8 +268,34 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
 
             function escapeHtml(str) {
                 var div = document.createElement('div');
-                div.textContent = str;
+                div.textContent = str == null ? '' : str;
                 return div.innerHTML;
+            }
+
+            function buildIncomingBannerHtml(call) {
+                var displayName = call.displayName || call.callername || call.callernum || '?';
+                var number = call.callernum || '';
+                var destination = call.connectednum || '';
+                var note = call.contactDescription || '';
+                var meta = [];
+
+                if (number && displayName !== number) {
+                    meta.push('<span class="call-banner-chip">' + escapeHtml(number) + '</span>');
+                }
+                if (destination) {
+                    meta.push('<span class="call-banner-chip call-banner-chip-destination">Interno ' + escapeHtml(destination) + '</span>');
+                }
+
+                return ''
+                    + '<div class="call-banner-shell">'
+                    + '  <div class="call-banner-icon" aria-hidden="true">☎</div>'
+                    + '  <div class="call-banner-content">'
+                    + '    <div class="call-banner-eyebrow">Chiamata in arrivo</div>'
+                    + '    <div class="call-banner-title">' + escapeHtml(displayName) + '</div>'
+                    + (meta.length ? '<div class="call-banner-meta">' + meta.join('') + '</div>' : '')
+                    + (note ? '<div class="call-banner-note"><span>Note</span>' + escapeHtml(note) + '</div>' : '')
+                    + '  </div>'
+                    + '</div>';
             }
 
             // --- Banner chiamate (alto a destra) ---
@@ -312,7 +351,7 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
 
             // --- Lookup nome chiamante dalla rubrica LDAP ---
 
-            function lookupName(number, callback) {
+            function lookupContact(number, callback) {
                 if (!number) { callback(null); return; }
                 if (nameCache[number] !== undefined) {
                     callback(nameCache[number]);
@@ -321,7 +360,10 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
                 fetch('/api/lookup/' + encodeURIComponent(number))
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
-                        nameCache[number] = data.name || null;
+                        nameCache[number] = {
+                            name: data.name || null,
+                            description: data.description || null
+                        };
                         callback(nameCache[number]);
                     })
                     .catch(function () {
@@ -333,13 +375,13 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
                 var call = activeCalls[uid];
                 if (!call || call.state !== "connected") return;
 
-                lookupName(call.callerid1, function (name1) {
-                    lookupName(call.callerid2, function (name2) {
+                lookupContact(call.callerid1, function (contact1) {
+                    lookupContact(call.callerid2, function (contact2) {
                         var current = activeCalls[uid];
                         if (!current || current.state !== "connected") return;
 
-                        current.display1 = name1 || current.name1 || current.callerid1 || "?";
-                        current.display2 = name2 || current.name2 || current.callerid2 || "?";
+                        current.display1 = (contact1 && contact1.name) || current.name1 || current.callerid1 || "?";
+                        current.display2 = (contact2 && contact2.name) || current.name2 || current.callerid2 || "?";
                         updatePanel();
                     });
                 });
@@ -362,23 +404,21 @@ Favicon: "☎" (260e.svg) from Twitter Twemoji
                 };
 
                 // Cerca il nome nella rubrica LDAP
-                lookupName(num, function (ldapName) {
-                    var displayName = ldapName || name || num;
+                lookupContact(num, function (contact) {
+                    var displayName = (contact && contact.name) || name || num;
+                    var description = (contact && contact.description) || '';
                     activeCalls[uid].displayName = displayName;
+                    activeCalls[uid].contactDescription = description;
                     updateBadge();
 
                     // Banner in-page
-                    showCallBanner(uid,
-                        '<strong>Chiamata in arrivo</strong><br>'
-                        + 'Da: ' + escapeHtml(displayName)
-                        + (displayName !== num && num ? ' (' + escapeHtml(num) + ')' : '')
-                        + ' &#8594; ' + escapeHtml(dest),
-                        'ringing'
-                    );
+                    showCallBanner(uid, buildIncomingBannerHtml(activeCalls[uid]), 'ringing');
 
                     // Notifica browser
                     var body = 'Da: ' + displayName;
                     if (displayName !== num && num) body += ' (' + num + ')';
+                    if (dest) body += '\nInterno: ' + dest;
+                    if (description) body += '\nNote: ' + description;
                     showBrowserNotification('Chiamata in arrivo', body);
                 });
             }
