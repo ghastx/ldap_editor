@@ -519,19 +519,23 @@ def api_lookup(number):
     le notifiche di chiamata in arrivo.
 
     Returns:
-        JSON con 'name' (displayName) se trovato, altrimenti null.
+        JSON con 'name' (displayName) e 'description' se trovati,
+        altrimenti valori null.
     """
     # Pulisce il numero: rimuove +39, spazi, trattini, parentesi
     number = normalize_number(number)
     if not number:
-        return jsonify(name=None)
+        return jsonify(name=None, description=None)
     try:
         contact = ldap.search_by_phone(number)
         if contact:
-            return jsonify(name=contact["displayName"])
-        return jsonify(name=None)
+            return jsonify(
+                name=contact["displayName"],
+                description=contact.get("description") or None,
+            )
+        return jsonify(name=None, description=None)
     except LDAPException:
-        return jsonify(name=None)
+        return jsonify(name=None, description=None)
 
 
 @app.route("/api/calls")
